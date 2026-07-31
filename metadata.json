@@ -1,0 +1,6 @@
+{
+  "name": "Cube Dash - Grid Engine & Editor",
+  "description": "Lightweight grid-based physics engine, level editor, and community levels repo with System 7 e-ink compatibility.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
