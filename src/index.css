@@ -1,15 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --border: 2px solid #141414;
-  --border-thick: 4px solid #141414;
-  --shadow: 4px 4px 0px #141414;
-  --shadow-sm: 2px 2px 0px #141414;
-  --bg-main: #E4E3E0;
-  --bg-panel: #EDEDEB;
-  --bg-header: #D9D8D5;
-  --text-main: #141414;
-  --stripe-pattern: repeating-linear-gradient(0deg, transparent, transparent 2px, #141414 3px, #141414 4px);
+  --border: 2px solid #000000;
+  --shadow: 4px 4px 0px #000000;
+  --stripe-pattern: repeating-linear-gradient(0deg, transparent, transparent 2px, #000 3px, #000 4px);
 }
 
 * {
@@ -18,11 +12,11 @@
 
 body {
   image-rendering: pixelated;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background-color: var(--bg-main);
-  color: var(--text-main);
+  font-family: "Geneva", "Verdana", sans-serif;
+  background-color: #e5e5e5;
+  color: #000000;
   margin: 0;
-  padding: 12px;
+  padding: 10px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -33,13 +27,13 @@ body {
 }
 
 .window {
-  background: var(--bg-main);
-  border: var(--border-thick);
+  background: white;
+  border: 2px solid black;
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 720px;
+  max-width: 600px;
   min-height: fit-content;
   max-height: 95vh;
   overflow-y: auto;
@@ -47,75 +41,115 @@ body {
 }
 
 .title-bar {
-  height: 44px;
-  border-bottom: 2px solid #141414;
+  height: 35px;
+  border-bottom: 2px solid black;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  background: var(--bg-header);
-  padding: 0 12px;
+  justify-content: center;
+  background: white;
+  padding: 0 10px;
   position: relative;
   flex-shrink: 0;
 }
 
-.title-badge {
-  background: #141414;
-  color: #E4E3E0;
-  padding: 2px 6px;
-  font-size: 0.7rem;
-  font-weight: bold;
-  letter-spacing: -0.05em;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+.title-stripes {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  background-image: var(--stripe-pattern);
+  z-index: 0;
 }
 
 .title-text {
-  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
-  font-style: italic;
-  font-weight: 600;
-  font-size: 1.15rem;
-  color: #141414;
-  display: flex;
+  background: white;
+  padding: 0 15px;
+  font-weight: bold;
+  z-index: 1;
+  font-size: 1.1rem;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  height: 100%;
+  box-sizing: border-box;
+  font-family: "Geneva", "Verdana", sans-serif;
 }
 
 .close-box {
-  position: static;
-  width: 22px;
-  height: 22px;
-  border: 2px solid #141414;
-  background: #white;
+  position: absolute;
+  left: 10px;
+  width: 18px;
+  height: 18px;
+  border: 2px solid black;
+  background: white;
+  z-index: 2;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  font-family: ui-monospace, monospace;
-  font-size: 0.85rem;
-  box-shadow: 2px 2px 0 #141414;
+  font-family: sans-serif;
+  font-size: 0.9rem;
+  line-height: 1;
+  box-shadow: 2px 2px 0 black;
 }
 
 .close-box:active {
-  background: #141414;
-  color: #E4E3E0;
+  background: black;
+  color: white;
   transform: translate(1px, 1px);
   box-shadow: none;
 }
 
 .title-right-group {
+  position: absolute;
+  right: 10px;
+  z-index: 2;
   display: flex;
   align-items: center;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.75rem;
+  background: white;
+  padding: 0 4px;
+  font-family: "Courier New", monospace;
+  font-size: 0.8rem;
   font-weight: bold;
 }
 
+.tab-nav-bar {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  background: #f0f0f0;
+  padding: 8px 10px;
+  border-bottom: 2px solid black;
+  width: 100%;
+}
+
+.tab-btn {
+  background: white;
+  border: 2px solid black;
+  box-shadow: 2px 2px 0 black;
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  font-size: 0.75rem;
+  padding: 4px 12px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.tab-btn.active,
+.tab-btn:active {
+  background: black;
+  color: white;
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
 .window-content {
-  padding: 16px;
+  padding: 15px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: var(--bg-main);
+  background: white;
   position: relative;
   flex: 1;
 }
@@ -131,66 +165,57 @@ body {
 
 h2.menu-heading {
   text-align: center;
-  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
-  font-style: italic;
-  font-size: 1.1rem;
-  margin: 0 0 4px 0;
+  font-size: 1rem;
+  margin: 0 0 6px 0;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.9;
+  letter-spacing: 1px;
+  font-family: "Geneva", "Verdana", sans-serif;
 }
 
 .menu-stats {
   text-align: center;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: "Courier New", monospace;
   font-weight: bold;
   font-size: 0.75rem;
-  margin-bottom: 12px;
-  background: var(--bg-header);
-  border: 1px solid #141414;
-  padding: 4px 12px;
-  display: inline-block;
-  align-self: center;
+  margin-bottom: 10px;
 }
 
 .lvl-row {
   display: flex;
   margin-bottom: 8px;
-  gap: 8px;
 }
 
 .lvl-main {
   flex: 1;
+  margin-right: 8px;
   min-height: 48px;
-  background: #ffffff;
-  border: 2px solid #141414;
-  box-shadow: 3px 3px 0 #141414;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: white;
+  border: 2px solid black;
+  box-shadow: 3px 3px 0 black;
+  font-family: "Courier New", monospace;
   font-weight: bold;
   font-size: 0.8rem;
   text-align: left;
-  padding: 8px 12px;
+  padding: 6px 10px;
   cursor: pointer;
-  transition: transform 0.05s ease;
 }
 
 .lvl-prac {
-  width: 110px;
+  width: 105px;
   min-height: 48px;
-  background: var(--bg-panel);
-  border: 2px solid #141414;
-  box-shadow: 3px 3px 0 #141414;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: white;
+  border: 2px solid black;
+  box-shadow: 3px 3px 0 black;
+  font-family: "Courier New", monospace;
   font-weight: bold;
   font-size: 0.75rem;
   cursor: pointer;
-  text-transform: uppercase;
 }
 
 .lvl-main:active,
 .lvl-prac:active {
-  background: #141414;
-  color: #E4E3E0;
+  background: black;
+  color: white;
   transform: translate(2px, 2px);
   box-shadow: none;
 }
@@ -198,97 +223,87 @@ h2.menu-heading {
 .lvl-name-line {
   display: block;
   font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
 }
 
 .lvl-sub-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: block;
   font-size: 0.7rem;
-  margin-top: 4px;
-  opacity: 0.85;
+  margin-top: 3px;
 }
 
 .lvl-chip {
   display: inline-block;
-  border: 1px solid #141414;
+  border: 1px solid black;
   padding: 0 4px;
+  margin-right: 6px;
   font-size: 0.65rem;
-  font-weight: bold;
-  background: var(--bg-header);
 }
 
 .lvl-chip.d2,
 .lvl-chip.d3 {
-  background: #141414;
-  color: #E4E3E0;
+  background: black;
+  color: white;
 }
 
 .pager-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .pager-btn {
   min-width: 90px;
-  min-height: 36px;
-  background: #ffffff;
-  border: 2px solid #141414;
-  box-shadow: 3px 3px 0 #141414;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  min-height: 40px;
+  background: white;
+  border: 2px solid black;
+  box-shadow: 3px 3px 0 black;
+  font-family: "Courier New", monospace;
   font-weight: bold;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   cursor: pointer;
-  text-transform: uppercase;
 }
 
 .pager-btn:active {
-  background: #141414;
-  color: #E4E3E0;
+  background: black;
+  color: white;
   transform: translate(2px, 2px);
   box-shadow: none;
 }
 
 #page-indicator {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: "Courier New", monospace;
   font-weight: bold;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   margin: 0 14px;
-  background: var(--bg-header);
-  border: 1px solid #141414;
-  padding: 2px 8px;
 }
 
 .menu-instructions {
   text-align: center;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   margin: 12px 0 10px 0;
   line-height: 1.4;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .sys-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #ffffff;
-  border: 2px solid #141414;
-  box-shadow: 3px 3px 0 #141414;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  display: block;
+  margin: 0 auto;
+  min-width: 160px;
+  min-height: 40px;
+  background: white;
+  border: 2px solid black;
+  box-shadow: 3px 3px 0 black;
+  font-family: inherit;
   font-weight: bold;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   text-transform: uppercase;
   cursor: pointer;
   padding: 6px 14px;
 }
 
 .sys-btn:active {
-  background: #141414;
-  color: #E4E3E0;
+  background: black;
+  color: white;
   transform: translate(2px, 2px);
   box-shadow: none;
 }
@@ -297,7 +312,7 @@ h2.menu-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: "Courier New", monospace;
   font-weight: bold;
   font-size: 0.75rem;
 }
@@ -305,32 +320,31 @@ h2.menu-heading {
 .progress-outer {
   margin-top: 8px;
   height: 12px;
-  border: 2px solid #141414;
-  background: #ffffff;
-  position: relative;
+  border: 2px solid black;
+  background: white;
 }
 
 #progress-fill {
   height: 100%;
   width: 0%;
-  background: #141414;
+  background: black;
 }
 
 canvas {
   display: block;
   margin: 10px auto 0 auto;
-  border: 3px solid #141414;
-  box-shadow: 4px 4px 0 #141414;
-  background: #ffffff;
+  border: 4px solid black;
+  box-shadow: 4px 4px 0 black;
+  background: white;
   image-rendering: pixelated;
   touch-action: none;
 }
 
 .tool-btn {
-  background: #ffffff;
-  border: 1px solid #141414;
-  box-shadow: 2px 2px 0 #141414;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: white;
+  border: 2px solid black;
+  box-shadow: 2px 2px 0 #000;
+  font-family: "Courier New", monospace;
   font-weight: bold;
   font-size: 0.75rem;
   padding: 4px 8px;
@@ -339,8 +353,8 @@ canvas {
 
 .tool-btn:active,
 .tool-btn.active {
-  background: #141414;
-  color: #E4E3E0;
+  background: black;
+  color: white;
   transform: translate(1px, 1px);
   box-shadow: none;
 }
@@ -352,7 +366,7 @@ canvas {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(228, 227, 224, 0.95);
+  background: white;
   z-index: 20;
   flex-direction: column;
   align-items: center;
@@ -367,25 +381,10 @@ canvas {
 }
 
 .overlay h2 {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   margin: 0 0 8px 0;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
-  font-style: italic;
+  letter-spacing: 2px;
 }
 
-.system-footer-bar {
-  height: 24px;
-  border-top: 1px solid #141414;
-  background: #141414;
-  color: #E4E3E0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 12px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.68rem;
-  flex-shrink: 0;
-}
 

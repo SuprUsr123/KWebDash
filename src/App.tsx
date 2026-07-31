@@ -5,14 +5,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { LevelData, SaveState, EInkConfig, DIFF_NAMES } from './types';
-import { OFFICIAL_LEVELS, SHOWCASE_COMMUNITY_LEVELS } from './constants/levels';
+import { OFFICIAL_LEVELS } from './constants/levels';
 import { TitleBar } from './components/TitleBar';
 import { GameCanvas } from './components/GameCanvas';
 import { LevelEditor } from './components/LevelEditor';
 import { CommunityRepository } from './components/CommunityRepository';
 import { KindleSettingsModal } from './components/KindleSettingsModal';
-import { Play, RotateCcw, Smartphone, ChevronLeft, ChevronRight, Download } from 'lucide-react';
-import { generateSingleFileHTML } from './utils/singleHtmlExporter';
 
 const LEVELS_PER_PAGE = 4;
 
@@ -139,27 +137,41 @@ export default function App() {
 
   return (
     <div className="window">
-      {/* System 7 Window Titlebar */}
+      {/* Retro Window Titlebar */}
       <TitleBar
         title="Cube Dash"
         totalPct={overallAvgPct}
-        totalGears={`${totalGearsGot}/${totalGearsMax}`}
-        onOpenSettings={() => setShowKindleSettings(true)}
         onClose={() => setActiveTab('menu')}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        einkEnabled={einkConfig.enabled}
-        onManualRefresh={() => {
-          // Manual screen flash
-        }}
       />
+
+      {/* Navigation Tab Bar */}
+      <div className="tab-nav-bar">
+        <button
+          className={`tab-btn ${activeTab === 'menu' ? 'active' : ''}`}
+          onClick={() => setActiveTab('menu')}
+        >
+          LEVELS
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'editor' ? 'active' : ''}`}
+          onClick={() => setActiveTab('editor')}
+        >
+          EDITOR
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'community' ? 'active' : ''}`}
+          onClick={() => setActiveTab('community')}
+        >
+          COMMUNITY
+        </button>
+      </div>
 
       {/* Tab View Routers */}
       {activeTab === 'menu' && (
         <div className="window-content screen active">
-          <h2 className="menu-heading">Select Official Level</h2>
+          <h2 className="menu-heading">Select Level</h2>
           <div className="menu-stats">
-            GEARS COLLECTED: <b>{totalGearsGot} / {totalGearsMax}</b>
+            GEARS: <b>{totalGearsGot} / {totalGearsMax}</b>
           </div>
 
           {/* Official Level Row Cards */}
@@ -169,11 +181,11 @@ export default function App() {
                 style={{
                   textAlign: 'center',
                   padding: '28px 16px',
-                  border: '2px dashed #141414',
-                  background: '#fcfcfc',
+                  border: '2px dashed black',
+                  background: 'white',
                   width: '100%',
                   marginBottom: '10px',
-                  fontFamily: 'monospace',
+                  fontFamily: '"Courier New", monospace',
                   fontSize: '0.8rem',
                   display: 'flex',
                   flexDirection: 'column',
@@ -246,15 +258,6 @@ export default function App() {
           <p className="menu-instructions">
             Tap or press <b>SPACE</b> / <b>UP ARROW</b> to jump. Hold to fly the ship. Avoid spikes and reach 100%!
           </p>
-
-          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-            <button className="sys-btn" onClick={() => setActiveTab('editor')}>
-              OPEN LEVEL EDITOR
-            </button>
-            <button className="sys-btn" onClick={() => setActiveTab('community')}>
-              COMMUNITY REPOSITORY
-            </button>
-          </div>
         </div>
       )}
 
@@ -316,12 +319,6 @@ export default function App() {
           }}
         />
       )}
-
-      {/* System High-Density Footer Bar */}
-      <footer className="system-footer-bar">
-        <div>Ready. Kindle Paperwhite (10th Gen) Emulation Profile Active.</div>
-        <div>SYS MEM: 32.42MB / 256MB | UTF-8 | JS-ES2019</div>
-      </footer>
     </div>
   );
 }
