@@ -175,7 +175,7 @@ export default function App() {
         <div className="window-content screen active">
           <h2 className="menu-heading">Select Level</h2>
           <div className="menu-stats">
-            GEARS: <b>{totalGearsGot} / {totalGearsMax}</b>
+            COINS: <b>{totalGearsGot} / {totalGearsMax}</b>
           </div>
 
           {/* Official Level Row Cards */}

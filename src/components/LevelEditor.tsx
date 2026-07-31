@@ -76,12 +76,14 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
     });
   };
 
+  const [editorStatusMsg, setEditorStatusMsg] = useState<string>('');
+
   const clearGrid = () => {
-    if (window.confirm("Clear all tiles on grid?")) {
-      const g = Array.from({ length: ROWS }, () => Array(lvlCols).fill('.'));
-      for (let r = 2; r < 10; r++) g[r][lvlCols - 2] = 'e';
-      setGridData(g);
-    }
+    const g = Array.from({ length: ROWS }, () => Array(lvlCols).fill('.'));
+    for (let r = 2; r < 10; r++) g[r][lvlCols - 2] = 'e';
+    setGridData(g);
+    setEditorStatusMsg('Grid cleared.');
+    setTimeout(() => setEditorStatusMsg(''), 2500);
   };
 
   // Canvas drawing loop for Editor Grid
@@ -144,33 +146,104 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
           ctx.lineWidth = 3;
           ctx.strokeRect(ox, oy, TILE_SIZE, TILE_SIZE);
         } else if (ch === 'B') {
-          ctx.fillStyle = '#000000';
+          // Floating Platform - Deck with Struts
+          ctx.fillStyle = '#ffffff';
           ctx.fillRect(ox, oy, TILE_SIZE, 12);
-        } else if (ch === 'p') {
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(ox, oy, TILE_SIZE, 12);
           ctx.fillStyle = '#000000';
-          ctx.fillRect(ox, oy + TILE_SIZE - 8, TILE_SIZE, 8);
+          ctx.fillRect(ox, oy, TILE_SIZE, 3); // top solid rail
+          ctx.fillRect(ox + 4, oy + 3, 2, 8); // strut 1
+          ctx.fillRect(ox + 11, oy + 3, 2, 8); // strut 2
+          ctx.fillRect(ox + 18, oy + 3, 2, 8); // strut 3
+        } else if (ch === 'p') {
+          // Jump Pad - Base Plate & Upward Spring Chevron
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(ox + 2, oy + TILE_SIZE - 6, TILE_SIZE - 4, 6);
+          ctx.beginPath();
+          ctx.moveTo(ox + 12, oy + TILE_SIZE - 18);
+          ctx.lineTo(ox + 18, oy + TILE_SIZE - 8);
+          ctx.lineTo(ox + 6, oy + TILE_SIZE - 8);
+          ctx.closePath();
+          ctx.fill();
         } else if (ch === 'r') {
           ctx.strokeStyle = '#000000';
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.arc(ox + 12, oy + 12, 8, 0, Math.PI * 2);
           ctx.stroke();
-        } else if (ch === 'g' || ch === 'n') {
+        } else if (ch === 'g') {
+          // Grav Up Portal - Outer frame with UP Arrow
           ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(ox, oy, TILE_SIZE, TILE_SIZE);
+          ctx.lineWidth = 2.5;
+          ctx.strokeRect(ox + 2, oy + 2, TILE_SIZE - 4, TILE_SIZE - 4);
           ctx.fillStyle = '#000000';
-          ctx.fillRect(ox + 4, oy + 4, TILE_SIZE - 8, TILE_SIZE - 8);
-        } else if (ch === 'w' || ch === 'q') {
+          ctx.beginPath();
+          ctx.moveTo(ox + 12, oy + 5);
+          ctx.lineTo(ox + 18, oy + 13);
+          ctx.lineTo(ox + 14, oy + 13);
+          ctx.lineTo(ox + 14, oy + 19);
+          ctx.lineTo(ox + 10, oy + 19);
+          ctx.lineTo(ox + 10, oy + 13);
+          ctx.lineTo(ox + 6, oy + 13);
+          ctx.closePath();
+          ctx.fill();
+        } else if (ch === 'n') {
+          // Grav Down Portal - Outer frame with DOWN Arrow
           ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 3;
-          ctx.strokeRect(ox, oy, TILE_SIZE, TILE_SIZE);
+          ctx.lineWidth = 2.5;
+          ctx.strokeRect(ox + 2, oy + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
+          ctx.moveTo(ox + 12, oy + 19);
+          ctx.lineTo(ox + 18, oy + 11);
+          ctx.lineTo(ox + 14, oy + 11);
+          ctx.lineTo(ox + 14, oy + 5);
+          ctx.lineTo(ox + 10, oy + 5);
+          ctx.lineTo(ox + 10, oy + 11);
+          ctx.lineTo(ox + 6, oy + 11);
+          ctx.closePath();
+          ctx.fill();
+        } else if (ch === 'w') {
+          // Ship Portal - Oval Arch with Rocket Silhouette
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.ellipse(ox + 12, oy + 12, 10, 11, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
+          ctx.moveTo(ox + 19, oy + 12);
+          ctx.lineTo(ox + 6, oy + 6);
+          ctx.lineTo(ox + 10, oy + 12);
+          ctx.lineTo(ox + 6, oy + 18);
+          ctx.closePath();
+          ctx.fill();
+        } else if (ch === 'q') {
+          // Cube Portal - Oval Arch with Solid Mini Cube
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.ellipse(ox + 12, oy + 12, 10, 11, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(ox + 7, oy + 7, 10, 10);
         } else if (ch === '*') {
+          // Arcade Coin - Outer Circle, Inner Rim & Center Detail
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(ox + 12, oy + 12, 9, 0, Math.PI * 2);
+          ctx.fill();
           ctx.strokeStyle = '#000000';
           ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(ox + 12, oy + 12, 8, 0, Math.PI * 2);
           ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(ox + 12, oy + 12, 5, 0, Math.PI * 2);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(ox + 11, oy + 9, 2, 6);
         } else if (ch === 'e') {
           ctx.strokeStyle = '#000000';
           ctx.lineWidth = 3;
@@ -206,8 +279,22 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
 
     if (row >= 0 && row < ROWS && col >= 0 && col < lvlCols) {
       setGridData(prevGrid => {
+        const currentVal = prevGrid[row][col];
+        if (currentTile === '*' && currentVal !== '*') {
+          let count = 0;
+          for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < lvlCols; c++) {
+              if (prevGrid[r][c] === '*') count++;
+            }
+          }
+          if (count >= 3) {
+            setEditorStatusMsg('Coin limit reached (3 max per level)!');
+            setTimeout(() => setEditorStatusMsg(''), 2500);
+            return prevGrid;
+          }
+        }
         const next = prevGrid.map(r => [...r]);
-        next[row][col] = next[row][col] === currentTile ? '.' : currentTile;
+        next[row][col] = currentVal === currentTile ? '.' : currentTile;
         return next;
       });
     }
@@ -288,6 +375,11 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
             <Play size={11} style={{ display: 'inline', marginRight: '4px' }} /> PLAYTEST
           </button>
         </div>
+        {editorStatusMsg && (
+          <div style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '0.75rem', color: '#000', background: '#e0e0e0', padding: '2px 8px', border: '1px solid #000' }}>
+            {editorStatusMsg}
+          </div>
+        )}
         <div>
           <button className="tool-btn" onClick={clearGrid} style={{ marginRight: '6px' }}>
             CLEAR

@@ -13,6 +13,7 @@ An ultra-compact, retro-styled rhythm platformer and level creation engine built
   - [Server REST API Reference](#server-rest-api-reference)
   - [Connecting the Game to Your Server](#connecting-the-game-to-your-server)
   - [Deploying the Backend Server](#deploying-the-backend-server)
+- [Adding Official Levels](#-adding-official-levels)
 - [Level Data Specification](#level-data-specification)
 - [License](#license)
 
@@ -181,6 +182,54 @@ You can deploy `server/server.js` using Docker or Google Cloud Run by pointing t
 3. Set the **Build Command** to `npm install`.
 4. Set the **Start Command** to `npm start`.
 5. Environment Variables: Set `PORT` (defaults to `3001` if unset).
+
+---
+
+## 🛠️ Adding Official Levels
+
+Official levels are statically compiled into the game source code and are available to all players under the main **SELECT LEVEL** screen.
+
+### Method 1: Using the In-Game Editor (Recommended)
+
+1. Open **Cube Dash** and navigate to the **EDITOR** tab.
+2. Paint your level layout using the tile palette (Spikes, Platforms, Portals, Coins, Finish Line).
+3. Click **EXPORT JSON** in the editor top toolbar. This automatically validates your level and copies the `LevelData` JSON object to your clipboard.
+4. Open `src/constants/levels.ts` in your code editor.
+5. Paste the copied object into the `OFFICIAL_LEVELS` array.
+6. Save the file. The new level will automatically appear on the level select menu!
+
+### Method 2: Manual Code Entry
+
+Open `src/constants/levels.ts` and add a new entry to the `OFFICIAL_LEVELS` array:
+
+```typescript
+export const OFFICIAL_LEVELS: LevelData[] = [
+  // ... existing levels
+  {
+    id: 'official-4',
+    name: 'Aero Rush',
+    diff: 1,           // 0 = Easy, 1 = Normal, 2 = Hard, 3 = Brutal
+    speed: 5.5,        // Scroll speed
+    cols: 60,          // Column count (40 - 200)
+    rows: 12,          // Always 12
+    gearsTotal: 3,     // Total coins placed (max 3 per level)
+    grid: [
+      "............................................................",
+      "............................................................",
+      "............................................................",
+      "............................................................",
+      "............................................................",
+      "............................................................",
+      "............................................................",
+      "............................................................",
+      "............................................................",
+      "....b....B....B.............................................",
+      "....s....s....s.............................................",
+      "............................................................"
+    ]
+  }
+];
+```
 
 ---
 

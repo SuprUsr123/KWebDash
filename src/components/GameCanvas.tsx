@@ -275,6 +275,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const vx = level.speed * eng.speedScale;
 
           if (eng.mode === 'ship') {
+            const prevTop = eng.player.y;
             eng.player.vy += (eng.inputHeld ? SHIP_RISE : SHIP_FALL) * eng.grav;
             if (eng.player.vy > SHIP_TERMINAL) eng.player.vy = SHIP_TERMINAL;
             if (eng.player.vy < -SHIP_TERMINAL) eng.player.vy = -SHIP_TERMINAL;
@@ -292,6 +293,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             const off2 = (SHIP_H - pw2) / 2;
             const sx2 = PLAYER_X + 3;
             const sy2 = eng.player.y + off2;
+            const prevTopOff = prevTop + off2;
+            const prevBottomOff = prevTopOff + pw2;
+            const prevRightOff = sx2 + 24 - vx;
 
             for (let si = 0; si < eng.obstacles.length; si++) {
               const so = eng.obstacles[si];
@@ -301,9 +305,44 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                 if (so.type === 'ring') so.inZone = false;
                 continue;
               }
-              if (['spike', 'double', 'triple', 'block', 'spikeblock', 'ceilspike', 'pillar', 'hangpillar', 'platform'].includes(so.type)) {
+
+              if (['spike', 'double', 'triple', 'ceilspike', 'spikeblock'].includes(so.type)) {
                 triggerDeath();
                 break;
+              } else if (['block', 'pillar', 'hangpillar', 'platform'].includes(so.type)) {
+                if (eng.grav === 1) {
+                  if (prevBottomOff <= so.top + 10 && eng.player.vy >= 0) {
+                    // Landing/sliding on top of block or platform
+                    eng.player.y = so.top - SHIP_H;
+                    eng.player.vy = 0;
+                  } else if (prevTopOff >= so.top + so.h - 10 && eng.player.vy <= 0) {
+                    // Bumping underside of block/hanging pillar
+                    eng.player.y = so.top + so.h;
+                    eng.player.vy = Math.max(0, eng.player.vy);
+                  } else if (prevRightOff <= sox + 8) {
+                    // Head-on crash into front wall
+                    triggerDeath();
+                    break;
+                  } else {
+                    triggerDeath();
+                    break;
+                  }
+                } else {
+                  // Inverted gravity
+                  if (prevTopOff >= so.top + so.h - 10 && eng.player.vy <= 0) {
+                    eng.player.y = so.top + so.h;
+                    eng.player.vy = 0;
+                  } else if (prevBottomOff <= so.top + 10 && eng.player.vy >= 0) {
+                    eng.player.y = so.top - SHIP_H;
+                    eng.player.vy = Math.min(0, eng.player.vy);
+                  } else if (prevRightOff <= sox + 8) {
+                    triggerDeath();
+                    break;
+                  } else {
+                    triggerDeath();
+                    break;
+                  }
+                }
               } else if (so.type === 'pad') {
                 eng.player.vy = -10 * eng.grav;
               } else if (so.type === 'ring') {
@@ -627,7 +666,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           <h2>LEVEL COMPLETE!</h2>
           <p style={{ margin: '4px 0 12px 0' }}>{level.name} - 100%</p>
           <p style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>
-            Attempts: {attempts} | Jumps: {runJumps} | Gears: {runGears}/{engineRef.current.gearTotal}
+            Attempts: {attempts} | Jumps: {runJumps} | Coins: {runGears}/{engineRef.current.gearTotal}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '12px', width: '200px' }}>
             {hasNextLevel && onNextLevel && (
@@ -768,38 +807,112 @@ function renderScene(ctx: CanvasRenderingContext2D, eng: any, isDead: boolean) {
       ctx.lineTo(ox + o.w / 2, o.top + o.h);
       ctx.lineTo(ox + o.w, o.top);
       ctx.stroke();
-    } else if (['block', 'pillar', 'platform'].includes(o.type)) {
+    } else if (['block', 'pillar'].includes(o.type)) {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(ox, o.top, o.w, o.h);
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 3;
       ctx.strokeRect(ox, o.top, o.w, o.h);
-    } else if (o.type === 'pad') {
-      ctx.fillStyle = '#000000';
+    } else if (o.type === 'platform') {
+      // Floating Platform - Structure Deck with Top Rail & Vertical Support Struts
+      ctx.fillStyle = '#ffffff';
       ctx.fillRect(ox, o.top, o.w, o.h);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(ox, o.top, o.w, o.h);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(ox, o.top, o.w, 3); // Solid top surface rail
+      for (let sx = 4; sx < o.w - 2; sx += 8) {
+        ctx.fillRect(ox + sx, o.top + 3, 2, o.h - 4); // Support struts
+      }
+    } else if (o.type === 'pad') {
+      // Jump Pad - Base Plate with Upward Spring Triangle
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(ox + 2, o.top + o.h - 6, o.w - 4, 6);
+      ctx.beginPath();
+      ctx.moveTo(ox + o.w / 2, o.top + 2);
+      ctx.lineTo(ox + o.w - 4, o.top + o.h - 7);
+      ctx.lineTo(ox + 4, o.top + o.h - 7);
+      ctx.closePath();
+      ctx.fill();
     } else if (o.type === 'ring') {
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.arc(ox + 12, o.top + 12, 10, 0, Math.PI * 2);
       ctx.stroke();
-    } else if (o.type === 'gravup' || o.type === 'gravdown') {
+    } else if (o.type === 'gravup') {
+      // Grav Up Portal - Frame with UP Arrow
       ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(ox, o.top, o.w, o.h);
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(ox + 2, o.top + 2, o.w - 4, o.h - 4);
       ctx.fillStyle = '#000000';
-      ctx.fillRect(ox + 4, o.top + 4, o.w - 8, o.h - 8);
-    } else if (o.type === 'shipon' || o.type === 'shipoff') {
+      ctx.beginPath();
+      ctx.moveTo(ox + 12, o.top + 5);
+      ctx.lineTo(ox + 18, o.top + 13);
+      ctx.lineTo(ox + 14, o.top + 13);
+      ctx.lineTo(ox + 14, o.top + 19);
+      ctx.lineTo(ox + 10, o.top + 19);
+      ctx.lineTo(ox + 10, o.top + 13);
+      ctx.lineTo(ox + 6, o.top + 13);
+      ctx.closePath();
+      ctx.fill();
+    } else if (o.type === 'gravdown') {
+      // Grav Down Portal - Frame with DOWN Arrow
       ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(ox, o.top, o.w, o.h);
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(ox + 2, o.top + 2, o.w - 4, o.h - 4);
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.moveTo(ox + 12, o.top + 19);
+      ctx.lineTo(ox + 18, o.top + 11);
+      ctx.lineTo(ox + 14, o.top + 11);
+      ctx.lineTo(ox + 14, o.top + 5);
+      ctx.lineTo(ox + 10, o.top + 5);
+      ctx.lineTo(ox + 10, o.top + 11);
+      ctx.lineTo(ox + 6, o.top + 11);
+      ctx.closePath();
+      ctx.fill();
+    } else if (o.type === 'shipon') {
+      // Ship Portal - Oval Arch with Rocket
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.ellipse(ox + 12, o.top + 12, 10, 11, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.moveTo(ox + 19, o.top + 12);
+      ctx.lineTo(ox + 6, o.top + 6);
+      ctx.lineTo(ox + 10, o.top + 12);
+      ctx.lineTo(ox + 6, o.top + 18);
+      ctx.closePath();
+      ctx.fill();
+    } else if (o.type === 'shipoff') {
+      // Cube Portal - Oval Arch with Mini Cube
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.ellipse(ox + 12, o.top + 12, 10, 11, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(ox + 7, o.top + 7, 10, 10);
     } else if (o.type === 'gear') {
       if (!o.taken) {
+        // Arcade Coin
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(ox + 12, o.top + 12, 9, 0, Math.PI * 2);
+        ctx.fill();
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(ox + 12, o.top + 12, 8, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(ox + 12, o.top + 12, 5, 0, Math.PI * 2);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(ox + 11, o.top + 9, 2, 6);
       }
     } else if (o.type === 'end') {
       ctx.strokeStyle = '#000000';

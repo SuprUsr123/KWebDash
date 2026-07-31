@@ -248,7 +248,19 @@ export function generateSingleFileHTML(level: LevelData, allLevels?: LevelData[]
                 if (so.x < state.scrollX - 100 || so.x > state.scrollX + CANVAS_W + 100) continue;
                 var sox = so.x - state.scrollX;
                 if (!(PLAYER_X < sox + so.w && PLAYER_X + 24 > sox && player.y + 16 > so.top && player.y < so.top + so.h)) continue;
-                if (so.type === 'spike' || so.type === 'block' || so.type === 'ceilspike' || so.type === 'platform') triggerDeath();
+                if (so.type === 'spike' || so.type === 'ceilspike') triggerDeath();
+                else if (so.type === 'block' || so.type === 'platform') {
+                    if (state.grav === 1) {
+                        if (player.y + 16 <= so.top + 10 && player.vy >= 0) { player.y = so.top - SHIP_H; player.vy = 0; }
+                        else if (player.y >= so.top + so.h - 10 && player.vy <= 0) { player.y = so.top + so.h; player.vy = 0; }
+                        else { triggerDeath(); return; }
+                    } else {
+                        if (player.y >= so.top + so.h - 10 && player.vy <= 0) { player.y = so.top + so.h; player.vy = 0; }
+                        else if (player.y + 16 <= so.top + 10 && player.vy >= 0) { player.y = so.top - SHIP_H; player.vy = 0; }
+                        else { triggerDeath(); return; }
+                    }
+                }
+                else if (so.type === 'pad') { player.vy = -10 * state.grav; }
                 else if (so.type === 'gravup') { if (state.grav === 1) { state.grav = -1; player.vy = -3; } }
                 else if (so.type === 'gravdown') { if (state.grav === -1) { state.grav = 1; player.vy = 3; } }
                 else if (so.type === 'shipoff') { state.mode = 'cube'; player.grounded = false; }
@@ -321,7 +333,13 @@ export function generateSingleFileHTML(level: LevelData, allLevels?: LevelData[]
             } else if (o.type === 'block') {
                 ctx.strokeRect(ox, o.top, o.w, o.h);
             } else if (o.type === 'platform') {
-                ctx.fillRect(ox, o.top, o.w, o.h);
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(ox, o.top, o.w, o.h);
+                ctx.strokeRect(ox, o.top, o.w, o.h);
+                ctx.fillStyle = '#000000'; ctx.fillRect(ox, o.top, o.w, 3);
+            } else if (o.type === 'pad') {
+                ctx.fillStyle = '#000000'; ctx.fillRect(ox + 2, o.top + o.h - 6, o.w - 4, 6);
+                ctx.beginPath(); ctx.moveTo(ox + o.w / 2, o.top + 2); ctx.lineTo(ox + o.w - 4, o.top + o.h - 7); ctx.lineTo(ox + 4, o.top + o.h - 7); ctx.closePath(); ctx.fill();
+            }
             } else if (o.type === 'end') {
                 ctx.strokeRect(ox, o.top, o.w, o.h);
             }

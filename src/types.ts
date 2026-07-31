@@ -99,7 +99,7 @@ export const TILE_TYPES: TileType[] = [
   { char: 'n', name: 'Grav Down', description: 'Normal gravity', color: '#000000' },
   { char: 'w', name: 'Ship Portal', description: 'Enter Ship Mode', color: '#000000' },
   { char: 'q', name: 'Cube Portal', description: 'Enter Cube Mode', color: '#000000' },
-  { char: '*', name: 'Gear Star', description: 'Collectible', color: '#000000' },
+  { char: '*', name: 'Coin', description: 'Collectible Coin (Max 3)', color: '#000000' },
   { char: 'e', name: 'Finish Line', description: 'Level Goal', color: '#000000' }
 ];
 
