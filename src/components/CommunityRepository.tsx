@@ -33,12 +33,21 @@ export const CommunityRepository: React.FC<CommunityRepositoryProps> = ({
   const [filterDiff, setFilterDiff] = useState<number | 'all'>('all');
   const [importCodeText, setImportCodeText] = useState<string>('');
 
-  // Server Integration Stub Configuration
+  // Server Integration Configuration
   const [serverEndpoint, setServerEndpoint] = useState<string>('/api/levels');
   const [isFetching, setIsFetching] = useState<boolean>(false);
-  const [serverStatus, setServerStatus] = useState<string>('SERVER STUB READY');
+  const [serverStatus, setServerStatus] = useState<string>('SERVER DISCONNECTED');
+  const [serverLevels, setServerLevels] = useState<LevelData[]>([]);
 
-  const filteredLevels = levels.filter(lvl => {
+  // Combine server levels and local levels (de-duplicating by ID)
+  const combinedLevels = React.useMemo(() => {
+    const map = new Map<string, LevelData>();
+    serverLevels.forEach(lvl => map.set(lvl.id, lvl));
+    levels.forEach(lvl => map.set(lvl.id, lvl));
+    return Array.from(map.values());
+  }, [serverLevels, levels]);
+
+  const filteredLevels = combinedLevels.filter(lvl => {
     const matchesSearch =
       lvl.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (lvl.author && lvl.author.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -46,7 +55,7 @@ export const CommunityRepository: React.FC<CommunityRepositoryProps> = ({
     return matchesSearch && matchesDiff;
   });
 
-  // Server Sync Handler Stub
+  // Server Sync Handler
   const handleFetchFromServer = async () => {
     setIsFetching(true);
     setServerStatus(`CONNECTING TO ${serverEndpoint}...`);
@@ -58,16 +67,14 @@ export const CommunityRepository: React.FC<CommunityRepositoryProps> = ({
       }
       const fetchedData = await response.json();
       if (Array.isArray(fetchedData)) {
-        fetchedData.forEach((lvl: LevelData) => {
-          if (lvl.grid && lvl.grid.length === 12) {
-            onImportLevel(lvl);
-          }
-        });
-        setServerStatus(`LOADED ${fetchedData.length} LEVEL(S)`);
+        const validLevels = fetchedData.filter((lvl: LevelData) => lvl && lvl.grid && lvl.grid.length === 12);
+        setServerLevels(validLevels);
+        setServerStatus(`ONLINE — ${validLevels.length} LEVEL(S)`);
       } else {
         setServerStatus('SERVER RESPONDED (INVALID DATA)');
       }
     } catch (err: any) {
+      setServerLevels([]);
       setServerStatus(`SERVER DISCONNECTED (${err.message || 'Offline'})`);
     } finally {
       setIsFetching(false);
@@ -237,9 +244,9 @@ export const CommunityRepository: React.FC<CommunityRepositoryProps> = ({
             }}
           >
             <Globe size={24} opacity={0.6} />
-            <div style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>COMMUNITY REPOSITORY IS EMPTY</div>
+            <div style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>NO COMMUNITY LEVELS AVAILABLE</div>
             <p style={{ margin: 0, maxWidth: '420px', lineHeight: '1.4', opacity: 0.8 }}>
-              This tab is set up as a server adapter stub. Connect your backend API endpoint above to fetch community levels dynamically, or use the level editor to create custom levels.
+              No online levels found or server disconnected. Connect to a community level server using the endpoint field above, or create custom levels in the Level Editor.
             </p>
             <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
               <button className="tool-btn" onClick={onCreateNewLevel}>

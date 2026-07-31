@@ -1,0 +1,22 @@
+{
+  "name": "cube-dash-level-server",
+  "version": "1.0.0",
+  "description": "Standalone community level hosting server for Cube Dash",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  },
+  "keywords": [
+    "cube-dash",
+    "eink",
+    "level-sharing",
+    "express"
+  ],
+  "author": "",
+  "license": "Apache-2.0"
+}

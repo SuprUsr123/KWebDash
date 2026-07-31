@@ -28,10 +28,14 @@ export default function App() {
       const stored = localStorage.getItem('cubedash_save_v2');
       if (stored) {
         const parsed = JSON.parse(stored);
+        const legacyShowcaseIds = ['custom-1', 'custom-2', 'custom-3'];
+        const cleanCustom = (parsed.customLevels || []).filter(
+          (lvl: LevelData) => !legacyShowcaseIds.includes(lvl.id)
+        );
         return {
           progress: parsed.progress || {},
           gears: parsed.gears || {},
-          customLevels: parsed.customLevels || []
+          customLevels: cleanCustom
         };
       }
     } catch (e) {
