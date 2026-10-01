@@ -1,36 +1,39 @@
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
+ * Main App Component
+ * Conforms to Kindle Browser Compatibility Guide (No flex gap, ES2019, SystemModal instead of alert).
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { LevelData, SaveState, EInkConfig, DIFF_NAMES } from './types';
+import { LevelData, SaveState, EInkConfig, DIFF_NAMES, isBannedLegacyLevel } from './types';
 import { OFFICIAL_LEVELS } from './constants/levels';
 import { TitleBar } from './components/TitleBar';
 import { GameCanvas } from './components/GameCanvas';
 import { LevelEditor } from './components/LevelEditor';
 import { CommunityRepository } from './components/CommunityRepository';
 import { KindleSettingsModal } from './components/KindleSettingsModal';
+import { SystemModal, ModalConfig } from './components/SystemModal';
 
 const LEVELS_PER_PAGE = 4;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'menu' | 'editor' | 'community' | 'game'>('menu');
   const [menuPage, setMenuPage] = useState<number>(0);
-  const [selectedLevel, setSelectedLevel] = useState<LevelData | null>(OFFICIAL_LEVELS[0] || null);
+  const [selectedLevel, setSelectedLevel] = useState<LevelData | null>(OFFICIAL_LEVELS.length > 0 ? OFFICIAL_LEVELS[0] : null);
   const [isPracticeMode, setIsPracticeMode] = useState<boolean>(false);
   const [editingLevel, setEditingLevel] = useState<LevelData | undefined>(undefined);
   const [showKindleSettings, setShowKindleSettings] = useState<boolean>(false);
+  const [modalConfig, setModalConfig] = useState<ModalConfig | null>(null);
 
-  // Persistence State
+  // Persistence State - Guaranteed to never contain banned legacy levels
   const [saveState, setSaveState] = useState<SaveState>(() => {
     try {
       const stored = localStorage.getItem('cubedash_save_v2');
       if (stored) {
         const parsed = JSON.parse(stored);
-        const legacyShowcaseIds = ['custom-1', 'custom-2', 'custom-3'];
         const cleanCustom = (parsed.customLevels || []).filter(
-          (lvl: LevelData) => !legacyShowcaseIds.includes(lvl.id)
+          (lvl: LevelData) => lvl && !isBannedLegacyLevel(lvl)
         );
         return {
           progress: parsed.progress || {},
@@ -60,19 +63,75 @@ export default function App() {
   // Save to LocalStorage
   useEffect(() => {
     try {
-      localStorage.setItem('cubedash_save_v2', JSON.stringify(saveState));
+      const cleanCustom = (saveState.customLevels || []).filter(l => !isBannedLegacyLevel(l));
+      localStorage.setItem('cubedash_save_v2', JSON.stringify({
+        ...saveState,
+        customLevels: cleanCustom
+      }));
     } catch (e) {
       // Ignore
     }
   }, [saveState]);
 
+  // Bi-directional Auto-Sync with Server on mount so levels are NEVER lost across republishes or restarts
+  useEffect(() => {
+    let isMounted = true;
+    const syncWithServer = async () => {
+      try {
+        const cleanLocal = (saveState.customLevels || []).filter(l => !isBannedLegacyLevel(l));
+        const res = await fetch('/api/levels/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cleanLocal)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.levels) && isMounted) {
+            const cleanServer: LevelData[] = data.levels.filter(
+              (l: any) => l && l.grid && l.grid.length === 12 && !isBannedLegacyLevel(l)
+            );
+            setSaveState(prev => {
+              const map = new Map<string, LevelData>();
+              // Load all server levels
+              cleanServer.forEach(l => map.set(l.id, l));
+              // Merge local levels
+              prev.customLevels.forEach(l => {
+                if (!isBannedLegacyLevel(l) && !map.has(l.id)) {
+                  map.set(l.id, l);
+                }
+              });
+              return {
+                progress: prev.progress,
+                gears: prev.gears,
+                customLevels: Array.from(map.values())
+              };
+            });
+          }
+        }
+      } catch {
+        // Server might be running on a different port or offline; local data remains safe
+      }
+    };
+
+    syncWithServer();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Level Complete Handler
-  const handleLevelComplete = useCallback((levelId: string, gearsMask: number, isPractice: boolean) => {
+  const handleLevelComplete = useCallback((levelId: string, gearsMask: number, _isPractice: boolean) => {
     setSaveState(prev => {
-      const newProgress = { ...prev.progress, [levelId]: 100 };
+      const newProgress = Object.assign({}, prev.progress);
+      newProgress[levelId] = 100;
       const currentGears = prev.gears[levelId] || 0;
-      const newGears = { ...prev.gears, [levelId]: currentGears | gearsMask };
-      return { ...prev, progress: newProgress, gears: newGears };
+      const newGears = Object.assign({}, prev.gears);
+      newGears[levelId] = currentGears | gearsMask;
+      return {
+        progress: newProgress,
+        gears: newGears,
+        customLevels: prev.customLevels
+      };
     });
   }, []);
 
@@ -82,7 +141,8 @@ export default function App() {
   let totalGearsGot = 0;
   let totalGearsMax = 0;
 
-  [...OFFICIAL_LEVELS, ...saveState.customLevels].forEach(lvl => {
+  const allLevels = OFFICIAL_LEVELS.concat(saveState.customLevels);
+  allLevels.forEach(lvl => {
     totalPctSum += saveState.progress[lvl.id] || 0;
     const mask = saveState.gears[lvl.id] || 0;
     let tempMask = mask;
@@ -108,6 +168,8 @@ export default function App() {
   };
 
   const handleSaveToCommunity = (lvl: LevelData) => {
+    if (isBannedLegacyLevel(lvl)) return;
+
     setSaveState(prev => {
       const existingIdx = prev.customLevels.findIndex(l => l.id === lvl.id);
       let updatedCustoms: LevelData[];
@@ -117,20 +179,60 @@ export default function App() {
       } else {
         updatedCustoms = [lvl, ...prev.customLevels];
       }
-      return { ...prev, customLevels: updatedCustoms };
+      return {
+        progress: prev.progress,
+        gears: prev.gears,
+        customLevels: updatedCustoms
+      };
     });
-    alert(`Level "${lvl.name}" saved to Community Repository!`);
+
+    // Also persist to server in the background so it survives republishing
+    fetch('/api/levels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(lvl)
+    }).catch(() => {});
+
+    setModalConfig({
+      type: 'alert',
+      title: 'LEVEL SAVED',
+      message: `Level "${lvl.name}" saved to Community Repository!`
+    });
   };
 
   const handleDeleteCustomLevel = (id: string) => {
     setSaveState(prev => ({
-      ...prev,
+      progress: prev.progress,
+      gears: prev.gears,
       customLevels: prev.customLevels.filter(l => l.id !== id)
     }));
+    // Also delete on server if server-persisted
+    if (id.startsWith('srv-lvl-')) {
+      fetch(`/api/levels/${id}`, { method: 'DELETE' }).catch(() => {});
+    }
   };
 
   const handleImportLevel = (lvl: LevelData) => {
     handleSaveToCommunity(lvl);
+  };
+
+  const handleSyncLevels = (syncedLevels: LevelData[]) => {
+    setSaveState(prev => {
+      const map = new Map<string, LevelData>();
+      syncedLevels.forEach(l => {
+        if (!isBannedLegacyLevel(l)) map.set(l.id, l);
+      });
+      prev.customLevels.forEach(l => {
+        if (!isBannedLegacyLevel(l) && !map.has(l.id)) {
+          map.set(l.id, l);
+        }
+      });
+      return {
+        progress: prev.progress,
+        gears: prev.gears,
+        customLevels: Array.from(map.values())
+      };
+    });
   };
 
   const maxPage = Math.max(0, Math.ceil(OFFICIAL_LEVELS.length / LEVELS_PER_PAGE) - 1);
@@ -148,7 +250,7 @@ export default function App() {
         onClose={() => setActiveTab('menu')}
       />
 
-      {/* Navigation Tab Bar */}
+      {/* Navigation Tab Bar (Flexbox without gap - margin on siblings) */}
       <div className="tab-nav-bar">
         <button
           className={`tab-btn ${activeTab === 'menu' ? 'active' : ''}`}
@@ -173,7 +275,7 @@ export default function App() {
       {/* Tab View Routers */}
       {activeTab === 'menu' && (
         <div className="window-content screen active">
-          <h2 className="menu-heading">Select Level</h2>
+          <h2 className="menu-heading" data-i18n="menu.select_level">Select Level</h2>
           <div className="menu-stats">
             COINS: <b>{totalGearsGot} / {totalGearsMax}</b>
           </div>
@@ -193,15 +295,14 @@ export default function App() {
                   fontSize: '0.8rem',
                   display: 'flex',
                   flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '10px'
+                  alignItems: 'center'
                 }}
               >
-                <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>NO OFFICIAL LEVELS DEFINED</div>
-                <p style={{ margin: 0, maxWidth: '420px', lineHeight: '1.4', opacity: 0.8 }}>
-                  The official levels list is currently empty so you can add your own level definitions later. Use the Level Editor to create levels or switch to the Community tab.
+                <div style={{ fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '8px' }}>NO OFFICIAL LEVELS DEFINED</div>
+                <p style={{ margin: '0 0 12px 0', maxWidth: '420px', lineHeight: '1.4', opacity: 0.8 }}>
+                  The official levels list is currently empty. Use the Level Editor to create levels or switch to the Community tab to play community-hosted courses.
                 </p>
-                <button className="sys-btn" onClick={() => setActiveTab('editor')} style={{ marginTop: '4px' }}>
+                <button className="sys-btn" onClick={() => setActiveTab('editor')} style={{ minHeight: '40px' }}>
                   CREATE A LEVEL IN EDITOR
                 </button>
               </div>
@@ -236,7 +337,7 @@ export default function App() {
             )}
           </div>
 
-          {/* Pagination */}
+          {/* Pagination (Touch targets >= 48px) */}
           <div className="pager-row">
             <button
               className="pager-btn"
@@ -260,8 +361,19 @@ export default function App() {
           </div>
 
           <p className="menu-instructions">
-            Tap or press <b>SPACE</b> / <b>UP ARROW</b> to jump. Hold to fly the ship. Avoid spikes and reach 100%!
+            Tap screen or press <b>SPACE</b> / <b>UP ARROW</b> to jump. Hold to fly ship. Avoid spikes!
           </p>
+
+          {/* Kindle / Low-RAM Display Mode Button */}
+          <div style={{ marginTop: '6px', textAlign: 'center' }}>
+            <button
+              className="tool-btn"
+              onClick={() => setShowKindleSettings(true)}
+              style={{ padding: '6px 14px', fontSize: '0.75rem' }}
+            >
+              KINDLE / LOW-RAM CONFIG
+            </button>
+          </div>
         </div>
       )}
 
@@ -283,6 +395,7 @@ export default function App() {
           onEditLevel={handleEditLevel}
           onDeleteLevel={handleDeleteCustomLevel}
           onImportLevel={handleImportLevel}
+          onSyncLevels={handleSyncLevels}
           onCreateNewLevel={() => {
             setEditingLevel(undefined);
             setActiveTab('editor');
@@ -298,7 +411,7 @@ export default function App() {
           onQuitToMenu={() => setActiveTab('menu')}
           onLevelComplete={handleLevelComplete}
           onNextLevel={() => {
-            const all = [...OFFICIAL_LEVELS, ...saveState.customLevels];
+            const all = OFFICIAL_LEVELS.concat(saveState.customLevels);
             const idx = all.findIndex(l => l.id === selectedLevel.id);
             if (idx >= 0 && idx + 1 < all.length) {
               setSelectedLevel(all[idx + 1]);
@@ -306,7 +419,7 @@ export default function App() {
             }
           }}
           hasNextLevel={
-            [...OFFICIAL_LEVELS, ...saveState.customLevels].findIndex(l => l.id === selectedLevel.id) + 1 <
+            OFFICIAL_LEVELS.concat(saveState.customLevels).findIndex(l => l.id === selectedLevel.id) + 1 <
             OFFICIAL_LEVELS.length + saveState.customLevels.length
           }
         />
@@ -323,6 +436,9 @@ export default function App() {
           }}
         />
       )}
+
+      {/* System Modal for alerts */}
+      <SystemModal config={modalConfig} onClose={() => setModalConfig(null)} />
     </div>
   );
 }

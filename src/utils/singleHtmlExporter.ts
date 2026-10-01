@@ -124,8 +124,9 @@ export function generateSingleFileHTML(level: LevelData, allLevels?: LevelData[]
     var TILE_SIZE = 24, CANVAS_W = 512, CANVAS_H = 288, ROWS = 12;
     var FLOOR_Y = 240, CEIL_Y = 48, PLAYER_SIZE = 24, PLAYER_X = 96;
     var TARGET_FPS = 60, FIXED_TIMESTEP = 1000 / TARGET_FPS;
-    var BASE_GRAVITY = 1.0, TERMINAL_VELOCITY = 13, JUMP_FORCE = -14, COYOTE_TIME_MAX = 6, JUMP_BUFFER_MAX = 7;
-    var SHIP_H = 20, SHIP_RISE = -0.85, SHIP_FALL = 0.65, SHIP_TERMINAL = 6.5;
+    var GD_BASE_SPEED = 4.1544, BASE_GRAVITY = 0.58, TERMINAL_VELOCITY = 10.8, JUMP_FORCE = -8.55, PAD_FORCE = -10.8;
+    var COYOTE_TIME_MAX = 5, JUMP_BUFFER_MAX = 6;
+    var SHIP_H = 20, SHIP_RISE = -0.38, SHIP_FALL = 0.32, SHIP_TERMINAL = 5.2;
 
     var canvas = document.getElementById('gameCanvas');
     var ctx = canvas.getContext('2d', { alpha: false });
@@ -150,9 +151,41 @@ export function generateSingleFileHTML(level: LevelData, allLevels?: LevelData[]
                 var ch = row[c];
                 if (ch === '.') continue;
                 var x = c * TILE_SIZE, y = r * TILE_SIZE;
-                if (ch === 's') obstacles.push({ type: 'spike', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
+                if (ch === 's') {
+                    var rightChar = (c < row.length - 1) ? row[c + 1] : '.';
+                    var leftChar = (c > 0) ? row[c - 1] : '.';
+                    var bottomChar = (r < level.grid.length - 1) ? level.grid[r + 1][c] : '.';
+                    var isSolidRight = (rightChar === 'b' || rightChar === 'f' || rightChar === 'B');
+                    var isSolidLeft = (leftChar === 'b' || leftChar === 'f' || leftChar === 'B');
+                    var isSolidBottom = (bottomChar === 'b' || bottomChar === 'B');
+                    if (!isSolidBottom && isSolidRight && (r < 9 || bottomChar === 's' || bottomChar === 'h' || bottomChar === '<')) obstacles.push({ type: 'leftspike', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
+                    else if (!isSolidBottom && isSolidLeft && (r < 9 || bottomChar === 's' || bottomChar === 'h' || bottomChar === '>')) obstacles.push({ type: 'rightspike', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
+                    else if (r <= 2 && !isSolidBottom) obstacles.push({ type: 'ceilspike', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
+                    else obstacles.push({ type: 'spike', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
+                }
+                else if (ch === 'h') {
+                    var rightChar = (c < row.length - 1) ? row[c + 1] : '.';
+                    var leftChar = (c > 0) ? row[c - 1] : '.';
+                    var bottomChar = (r < level.grid.length - 1) ? level.grid[r + 1][c] : '.';
+                    var isSolidRight = (rightChar === 'b' || rightChar === 'f' || rightChar === 'B');
+                    var isSolidLeft = (leftChar === 'b' || leftChar === 'f' || leftChar === 'B');
+                    var isSolidBottom = (bottomChar === 'b' || bottomChar === 'B');
+                    if (!isSolidBottom && isSolidRight && (r < 9 || bottomChar === 's' || bottomChar === 'h' || bottomChar === '<')) obstacles.push({ type: 'leftspike', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
+                    else if (!isSolidBottom && isSolidLeft && (r < 9 || bottomChar === 's' || bottomChar === 'h' || bottomChar === '>')) obstacles.push({ type: 'rightspike', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
+                    else if (r <= 2 && !isSolidBottom) obstacles.push({ type: 'ceilhalfspike', x: x, top: y, w: TILE_SIZE, h: 12 });
+                    else obstacles.push({ type: 'halfspike', x: x, top: y + 12, w: TILE_SIZE, h: 12 });
+                }
+                else if (ch === '<') obstacles.push({ type: 'leftspike', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
+                else if (ch === '>') obstacles.push({ type: 'rightspike', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
+                else if (ch === 'D') obstacles.push({ type: 'decospike', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
                 else if (ch === 'c') obstacles.push({ type: 'ceilspike', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
+                else if (ch === 'd') obstacles.push({ type: 'ceildecospike', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
                 else if (ch === 'b') obstacles.push({ type: 'block', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
+                else if (ch === 'f') obstacles.push({ type: 'fakeblock', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
+                else if (ch === 'S') obstacles.push({ type: 'startpos', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
+                else if (ch === 'Z') obstacles.push({ type: 'zoomin', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
+                else if (ch === 'z') obstacles.push({ type: 'zoomout', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
+                else if (ch === '0') obstacles.push({ type: 'zoomreset', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE });
                 else if (ch === 'B') obstacles.push({ type: 'platform', x: x, top: y, w: TILE_SIZE, h: 12 });
                 else if (ch === 'p') obstacles.push({ type: 'pad', x: x, top: y + 16, w: TILE_SIZE, h: 8 });
                 else if (ch === 'r') obstacles.push({ type: 'ring', x: x, top: y, w: TILE_SIZE, h: TILE_SIZE, inZone: false, used: false });
@@ -233,7 +266,8 @@ export function generateSingleFileHTML(level: LevelData, allLevels?: LevelData[]
 
     function updatePhysics() {
         if (!state.isPlaying || state.isDead || state.isPaused || state.isCompleted) return;
-        var speed = level.speed || 6.0; var vx = speed * state.speedScale;
+        var baseSpeedFactor = (level.speed && level.speed <= 2.5) ? level.speed : 1.0;
+        var vx = GD_BASE_SPEED * baseSpeedFactor * state.speedScale;
 
         if (state.mode === 'ship') {
             player.vy += (inputHeld ? SHIP_RISE : SHIP_FALL) * state.grav;
@@ -241,14 +275,14 @@ export function generateSingleFileHTML(level: LevelData, allLevels?: LevelData[]
             if (player.vy < -SHIP_TERMINAL) player.vy = -SHIP_TERMINAL;
             player.y += player.vy; state.scrollX += vx;
             if (player.y > FLOOR_Y - SHIP_H) { player.y = FLOOR_Y - SHIP_H; player.vy = 0; }
-            if (player.y < CEIL_Y) { player.y = CEIL_Y; player.vy = 0; }
+            if (!level.noCeiling && player.y < CEIL_Y) { player.y = CEIL_Y; player.vy = 0; }
 
             for (var si = 0; si < obstacles.length; si++) {
                 var so = obstacles[si];
                 if (so.x < state.scrollX - 100 || so.x > state.scrollX + CANVAS_W + 100) continue;
                 var sox = so.x - state.scrollX;
                 if (!(PLAYER_X < sox + so.w && PLAYER_X + 24 > sox && player.y + 16 > so.top && player.y < so.top + so.h)) continue;
-                if (so.type === 'spike' || so.type === 'ceilspike') triggerDeath();
+                if (so.type === 'spike' || so.type === 'ceilspike' || so.type === 'leftspike' || so.type === 'rightspike' || so.type === 'halfspike' || so.type === 'ceilhalfspike') triggerDeath();
                 else if (so.type === 'block' || so.type === 'platform') {
                     if (state.grav === 1) {
                         if (player.y + 16 <= so.top + 10 && player.vy >= 0) { player.y = so.top - SHIP_H; player.vy = 0; }
@@ -260,7 +294,7 @@ export function generateSingleFileHTML(level: LevelData, allLevels?: LevelData[]
                         else { triggerDeath(); return; }
                     }
                 }
-                else if (so.type === 'pad') { player.vy = -10 * state.grav; }
+                else if (so.type === 'pad') { player.vy = PAD_FORCE * state.grav; }
                 else if (so.type === 'gravup') { if (state.grav === 1) { state.grav = -1; player.vy = -3; } }
                 else if (so.type === 'gravdown') { if (state.grav === -1) { state.grav = 1; player.vy = 3; } }
                 else if (so.type === 'shipoff') { state.mode = 'cube'; player.grounded = false; }
@@ -269,7 +303,7 @@ export function generateSingleFileHTML(level: LevelData, allLevels?: LevelData[]
         } else {
             if (player.buffer > 0) player.buffer--;
             if (player.coyote > 0) player.coyote--;
-            if (inputHeld && player.grounded && player.buffer === 0) player.buffer = 2;
+            if (inputHeld && player.grounded && player.buffer <= 0) player.buffer = 2;
 
             if (player.buffer > 0 && (player.grounded || player.coyote > 0)) {
                 player.vy = JUMP_FORCE * state.grav; player.grounded = false; player.coyote = 0; player.buffer = 0;
@@ -287,7 +321,18 @@ export function generateSingleFileHTML(level: LevelData, allLevels?: LevelData[]
             } else {
                 if (player.y <= CEIL_Y) { player.y = CEIL_Y; player.vy = 0; player.grounded = true; touching = true; }
             }
-            if (!touching) player.rotation += 0.09 * state.grav;
+            if (touching) {
+                var nearest = Math.round(player.rotation / (Math.PI / 2)) * (Math.PI / 2);
+                player.rotation += (nearest - player.rotation) * 0.45;
+                if (Math.abs(nearest - player.rotation) < 0.02) player.rotation = nearest;
+            } else {
+                player.rotation += 0.2417 * state.grav;
+            }
+
+            var pHitX = PLAYER_X + 4;
+            var pHitW = 16;
+            var pHitY = player.y + 3;
+            var pHitH = 18;
 
             for (var i = 0; i < obstacles.length; i++) {
                 var o = obstacles[i];
@@ -295,16 +340,55 @@ export function generateSingleFileHTML(level: LevelData, allLevels?: LevelData[]
                 var ox = o.x - state.scrollX;
                 if (!(PLAYER_X < ox + o.w && PLAYER_X + 24 > ox && player.y + 24 > o.top && player.y < o.top + o.h)) continue;
 
-                if (o.type === 'spike' || o.type === 'ceilspike') { triggerDeath(); return; }
-                else if (o.type === 'block' || o.type === 'platform') {
-                    if (state.grav === 1) {
-                        if (prevTop + 24 <= o.top + 11 && player.vy >= 0) { player.y = o.top - PLAYER_SIZE; player.vy = 0; player.grounded = true; touching = true; }
-                        else { triggerDeath(); return; }
-                    } else {
-                        if (prevTop >= o.top + o.h - 11 && player.vy <= 0) { player.y = o.top + o.h; player.vy = 0; player.grounded = true; touching = true; }
-                        else { triggerDeath(); return; }
+                if (o.type === 'spike') {
+                    var tipY = o.top + 5;
+                    var testY = pHitY + pHitH;
+                    if (testY > tipY && pHitY < o.top + o.h) {
+                        var progress = Math.max(0, Math.min(1, (testY - tipY) / (o.h - 5)));
+                        var halfW = 2.5 + progress * (o.w / 2 - 6);
+                        var centerX = ox + o.w / 2;
+                        if (pHitX < centerX + halfW && pHitX + pHitW > centerX - halfW) { triggerDeath(); return; }
                     }
-                } else if (o.type === 'pad') { player.vy = JUMP_FORCE * 1.3 * state.grav; player.grounded = false; }
+                    continue;
+                } else if (o.type === 'ceilspike') {
+                    var tipY = o.top + o.h - 5;
+                    var testY = pHitY;
+                    if (testY < tipY && pHitY + pHitH > o.top) {
+                        var progress = Math.max(0, Math.min(1, (tipY - testY) / (o.h - 5)));
+                        var halfW = 2.5 + progress * (o.w / 2 - 6);
+                        var centerX = ox + o.w / 2;
+                        if (pHitX < centerX + halfW && pHitX + pHitW > centerX - halfW) { triggerDeath(); return; }
+                    }
+                    continue;
+                } else if (o.type === 'leftspike') {
+                    var tipX = ox + 5;
+                    var testX = pHitX + pHitW;
+                    if (testX > tipX && pHitX < ox + o.w) {
+                        var progress = Math.max(0, Math.min(1, (testX - tipX) / (o.w - 5)));
+                        var halfH = 2.5 + progress * (o.h / 2 - 4);
+                        var centerY = o.top + o.h / 2;
+                        if (pHitY < centerY + halfH && pHitY + pHitH > centerY - halfH) { triggerDeath(); return; }
+                    }
+                    continue;
+                } else if (o.type === 'rightspike') {
+                    var tipX = ox + o.w - 5;
+                    var testX = pHitX;
+                    if (testX < tipX && testX + pHitW > ox) {
+                        var progress = Math.max(0, Math.min(1, (tipX - testX) / (o.w - 5)));
+                        var halfH = 2.5 + progress * (o.h / 2 - 4);
+                        var centerY = o.top + o.h / 2;
+                        if (pHitY < centerY + halfH && pHitY + pHitH > centerY - halfH) { triggerDeath(); return; }
+                    }
+                    continue;
+                } else if (o.type === 'block' || o.type === 'platform') {
+                    if (state.grav === 1) {
+                        if ((prevTop + 24 <= o.top + 14 || player.y + 24 <= o.top + 8) && player.vy >= -3.5) { player.y = o.top - PLAYER_SIZE; player.vy = 0; player.grounded = true; touching = true; }
+                        else if (PLAYER_X + 24 > ox + 4 && player.y + 24 > o.top + 6) { triggerDeath(); return; }
+                    } else {
+                        if ((prevTop >= o.top + o.h - 14 || player.y >= o.top + o.h - 8) && player.vy <= 3.5) { player.y = o.top + o.h; player.vy = 0; player.grounded = true; touching = true; }
+                        else if (PLAYER_X + 24 > ox + 4 && player.y < o.top + o.h - 6) { triggerDeath(); return; }
+                    }
+                } else if (o.type === 'pad') { player.vy = JUMP_FORCE * 1.28 * state.grav; player.grounded = false; }
                 else if (o.type === 'shipon') { state.mode = 'ship'; player.grounded = false; }
                 else if (o.type === 'gravup') { if (state.grav === 1) { state.grav = -1; player.vy = -3; } }
                 else if (o.type === 'gravdown') { if (state.grav === -1) { state.grav = 1; player.vy = 3; } }
@@ -322,16 +406,29 @@ export function generateSingleFileHTML(level: LevelData, allLevels?: LevelData[]
     function drawFrame() {
         ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         ctx.fillStyle = '#000000';
-        ctx.fillRect(0, CEIL_Y - 4, CANVAS_W, 4);
+        if (!level.noCeiling) ctx.fillRect(0, CEIL_Y - 4, CANVAS_W, 4);
         ctx.fillRect(0, FLOOR_Y, CANVAS_W, 4);
 
         for (var i = 0; i < obstacles.length; i++) {
             var o = obstacles[i]; var ox = Math.round(o.x - state.scrollX);
             if (ox < -30 || ox > CANVAS_W + 30) continue;
-            if (o.type === 'spike') {
+            if (o.type === 'spike' || o.type === 'decospike') {
                 ctx.beginPath(); ctx.moveTo(ox, o.top + o.h); ctx.lineTo(ox + o.w / 2, o.top); ctx.lineTo(ox + o.w, o.top + o.h); ctx.fill();
-            } else if (o.type === 'block') {
+            } else if (o.type === 'ceilspike' || o.type === 'ceildecospike') {
+                ctx.beginPath(); ctx.moveTo(ox, o.top); ctx.lineTo(ox + o.w / 2, o.top + o.h); ctx.lineTo(ox + o.w, o.top); ctx.fill();
+            } else if (o.type === 'leftspike') {
+                ctx.beginPath(); ctx.moveTo(ox + o.w, o.top); ctx.lineTo(ox, o.top + o.h / 2); ctx.lineTo(ox + o.w, o.top + o.h); ctx.fill();
+            } else if (o.type === 'rightspike') {
+                ctx.beginPath(); ctx.moveTo(ox, o.top); ctx.lineTo(ox + o.w, o.top + o.h / 2); ctx.lineTo(ox, o.top + o.h); ctx.fill();
+            } else if (o.type === 'block' || o.type === 'fakeblock') {
                 ctx.strokeRect(ox, o.top, o.w, o.h);
+            } else if (o.type === 'startpos') {
+                ctx.strokeRect(ox + 4, o.top + 4, o.w - 8, o.h - 8);
+                ctx.font = 'bold 8px monospace'; ctx.fillText('S', ox + 8, o.top + 14);
+            } else if (o.type === 'zoomin' || o.type === 'zoomout' || o.type === 'zoomreset') {
+                ctx.strokeRect(ox + 2, o.top + 2, o.w - 4, o.h - 4);
+                ctx.font = 'bold 8px monospace';
+                ctx.fillText(o.type === 'zoomin' ? 'Z+' : (o.type === 'zoomout' ? 'Z-' : 'Z0'), ox + 4, o.top + 14);
             } else if (o.type === 'platform') {
                 ctx.fillStyle = '#ffffff'; ctx.fillRect(ox, o.top, o.w, o.h);
                 ctx.strokeRect(ox, o.top, o.w, o.h);

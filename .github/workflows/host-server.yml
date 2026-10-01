@@ -1,0 +1,174 @@
+name: Host Level Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      port:
+        description: 'Server Port to host on'
+        required: false
+        default: '3001'
+      mode:
+        description: 'Server Type (standalone or fullstack)'
+        required: false
+        type: choice
+        options:
+          - 'standalone'
+          - 'fullstack'
+        default: 'standalone'
+      duration:
+        description: 'Hosting duration in minutes (keep-alive on runner)'
+        required: false
+        default: '30'
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'server/**'
+      - 'server.ts'
+      - 'data/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  host-server:
+    name: Host Cube Dash Server
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Root Dependencies
+        run: npm install
+
+      - name: Install Server Dependencies
+        run: |
+          if [ -d "server" ]; then
+            cd server
+            npm install
+            cd ..
+          fi
+
+      - name: Verify Level Storage Hygiene
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            const bannedPatterns = ['neon ascent', 'aero pulse', 'srv-lvl-neon-ascent', 'srv-lvl-aero-pulse', 'custom-1', 'custom-2', 'custom-3'];
+            
+            const checkFile = (filePath) => {
+              if (!fs.existsSync(filePath)) {
+                console.log('Creating clean file:', filePath);
+                const dir = path.dirname(filePath);
+                if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                fs.writeFileSync(filePath, '[]', 'utf8');
+                return;
+              }
+              try {
+                const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                if (!Array.isArray(data)) {
+                  console.error('Invalid levels format in', filePath);
+                  process.exit(1);
+                }
+                const foundBanned = data.filter(lvl => {
+                  const id = String(lvl?.id || '').toLowerCase();
+                  const name = String(lvl?.name || '').toLowerCase();
+                  return bannedPatterns.some(p => id.includes(p) || name.includes(p));
+                });
+                if (foundBanned.length > 0) {
+                  console.warn('Scrubbing', foundBanned.length, 'legacy demo levels from', filePath);
+                  const clean = data.filter(lvl => !foundBanned.includes(lvl));
+                  fs.writeFileSync(filePath, JSON.stringify(clean, null, 2), 'utf8');
+                }
+                console.log('Validated storage in', filePath, '-', data.length, 'levels stored cleanly.');
+              } catch (err) {
+                console.error('Error reading', filePath, err.message);
+                process.exit(1);
+              }
+            };
+
+            checkFile(path.join(process.cwd(), 'data', 'levels.json'));
+            checkFile(path.join(process.cwd(), 'server', 'data', 'levels.json'));
+          "
+
+      - name: Start Server Process
+        id: start-server
+        run: |
+          PORT_VAL="${{ github.event.inputs.port || '3001' }}"
+          MODE_VAL="${{ github.event.inputs.mode || 'standalone' }}"
+          echo "Starting Cube Dash server in mode: $MODE_VAL on port: $PORT_VAL"
+
+          if [ "$MODE_VAL" = "fullstack" ]; then
+            PORT=$PORT_VAL npx tsx server.ts > server.log 2>&1 &
+          else
+            cd server
+            PORT=$PORT_VAL node server.js > ../server.log 2>&1 &
+            cd ..
+          fi
+
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          echo "SERVER_PORT=$PORT_VAL" >> $GITHUB_ENV
+          
+          # Allow server to bind
+          sleep 3
+
+      - name: Health Check & Verification
+        run: |
+          PORT=${{ env.SERVER_PORT }}
+          echo "Testing health endpoint at http://127.0.0.1:$PORT/api/health"
+          
+          for i in {1..10}; do
+            if curl -s -f "http://127.0.0.1:$PORT/api/health"; then
+              echo ""
+              echo "Server health check passed!"
+              break
+            fi
+            echo "Waiting for server to respond (attempt $i/10)..."
+            sleep 2
+          done
+
+          echo "Testing GET /api/levels..."
+          curl -s -f "http://127.0.0.1:$PORT/api/levels" || {
+            echo "Failed to fetch /api/levels"
+            cat server.log
+            exit 1
+          }
+          echo ""
+          echo "Server verified and ready for level sharing!"
+
+      - name: Host Runner Runtime (Keep-Alive)
+        run: |
+          DURATION="${{ github.event.inputs.duration || '30' }}"
+          PORT="${{ env.SERVER_PORT }}"
+          echo "=========================================================="
+          echo " CUBE DASH LEVEL SERVER ACTIVE"
+          echo " Mode:     ${{ github.event.inputs.mode || 'standalone' }}"
+          echo " Port:     $PORT"
+          echo " Duration: $DURATION minutes"
+          echo " Endpoint: http://localhost:$PORT/api/levels"
+          echo " Health:   http://localhost:$PORT/api/health"
+          echo "=========================================================="
+
+          # Keep server actively monitored for the specified duration
+          END_TIME=$((SECONDS + DURATION * 60))
+          while [ $SECONDS -lt $END_TIME ]; do
+            if ! kill -0 ${{ env.SERVER_PID }} 2>/dev/null; then
+              echo "Server process terminated unexpectedly!"
+              cat server.log
+              exit 1
+            fi
+            sleep 15
+          done
+          echo "Hosting session duration ($DURATION minutes) elapsed successfully."

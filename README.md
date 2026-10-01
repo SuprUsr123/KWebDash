@@ -34,97 +34,76 @@ An ultra-compact, retro-styled rhythm platformer and level creation engine built
 ```text
 ├── src/                        # Game Frontend Source (React + Vite + TypeScript)
 │   ├── components/             # React UI components (Canvas, Editor, Repository, etc.)
-│   ├── constants/              # Level definitions and constants
+│   ├── constants/              # Official levels and level definitions
 │   ├── utils/                  # Single-file HTML exporter and grid helpers
 │   ├── App.tsx                 # Main application view container
 │   ├── index.css               # Retro window, button, and layout styles
 │   └── main.tsx                # React application entry point
-├── server/                     # Standalone Level Hosting Server (Node.js + Express)
-│   ├── data/                   # JSON file store for community levels
-│   ├── package.json            # Server package dependencies
-│   ├── README.md               # Server documentation
-│   └── server.js               # Express REST API server entry point
-├── index.html                  # Main HTML document
+├── server.ts                   # Unified Full-Stack Server (Express + Vite middlewares / static)
+├── data/                       # Persistent JSON store for community levels
+│   └── levels.json             # Community levels database
+├── index.html                  # Main HTML document & SEO metadata
 ├── metadata.json               # Platform applet metadata
-└── package.json                # Frontend package configuration
+└── package.json                # Unified full-stack dependencies & deployment scripts
 ```
 
 ---
 
-## 🚀 Getting Started (Game Frontend)
+## 🚀 Unified Full-Stack Architecture
 
-### Prerequisites
+Cube Dash is configured as a **single unified full-stack application**: both the Express backend REST API and the React frontend client run together inside the same deployment container!
 
-- **Node.js**: v18.0.0 or higher
-- **npm** or **bun** / **yarn**
+### How Publishing Works
+When you press **Publish** in Google AI Studio:
+1. AI Studio executes `npm run build`, which compiles the Vite client into the `dist/` directory.
+2. AI Studio launches the container using `npm start` (`node server.ts`).
+3. `server.ts` acts as the unified host:
+   - Serves all community level API routes (`/api/levels`, `/api/health`, etc.)
+   - Serves the static client bundles from `dist/`
+   - Automatically falls back to `dist/index.html` for single-page routing
+   - Persists community levels to `data/levels.json`
 
-### 1. Install Dependencies
+Both the client and the server are deployed simultaneously with zero extra infrastructure or separate hosting required!
 
-```bash
-npm install
-```
+---
 
-### 2. Run Development Server
+## 💻 Local Development
+
+### 1. Run Development Server
 
 ```bash
 npm run dev
 ```
 
-Open your browser and navigate to `http://localhost:3000` to play the game.
+This boots `server.ts` via `tsx` on port 3000, mounting Vite's development middlewares for instant hot module reloading (HMR) while also actively serving the `/api/levels` REST endpoints.
 
-### 3. Build for Production
+### 2. Build for Production
 
 ```bash
 npm run build
 ```
 
-The production output will be generated in the `dist/` folder.
+The production assets will be generated in `dist/`.
 
----
-
-## 🌐 Setting Up Your Own Level Server
-
-The `/server` directory contains a self-contained, standalone Node.js / Express backend server designed to host and serve community levels.
-
-### 1. Navigate to the Server Folder
-
-```bash
-cd server
-```
-
-### 2. Install Server Dependencies
-
-```bash
-npm install
-```
-
-### 3. Start the Level Server
+### 3. Run Production Server Locally
 
 ```bash
 npm start
 ```
 
-For development mode with automatic restart on code changes:
-
-```bash
-npm run dev
-```
-
-By default, the server will start listening on `http://localhost:3001`.
-
 ---
 
-### 📡 Server REST API Reference
+## 🌐 Community Level Server & REST API Reference
 
-The level server exposes the following JSON endpoints:
+The backend exposes the following JSON endpoints on the same origin (no CORS configuration needed):
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `GET` | `/api/health` | Checks server health and status. |
 | `GET` | `/api/levels` | Fetches an array of all hosted community levels. |
 | `GET` | `/api/levels/:id` | Fetches details for a single level by ID. |
-| `POST` | `/api/levels` | Publishes a new community level. |
-| `DELETE` | `/api/levels/:id` | Deletes a level by ID. |
+| `POST` | `/api/levels` | Publishes a new community level to the server. |
+| `DELETE` | `/api/levels/:id` | Deletes a community level by ID. |
 
 #### Example POST Request Body (`/api/levels`)
 
@@ -169,13 +148,26 @@ The level server exposes the following JSON endpoints:
 
 ### ☁️ Deploying the Backend Server
 
-You can host the standalone level server on any cloud platform:
+You can host the standalone level server on any cloud platform, or run it directly via GitHub Actions:
 
-#### Option A: Docker / Cloud Run
+#### Option A: GitHub Actions Trigger (Automated & Manual Hosting)
+
+This repository includes a dedicated GitHub Actions workflow (`.github/workflows/host-server.yml`) that can automatically validate and host the server directly in GitHub:
+
+1. In your GitHub repository, go to the **Actions** tab.
+2. Select the **Host Level Server** workflow.
+3. Click **Run workflow** (via `workflow_dispatch`).
+4. Select your options:
+   - **Server Port**: `3001` (or custom)
+   - **Server Type**: `standalone` (`server/server.js`) or `fullstack` (`server.ts`)
+   - **Duration**: Duration to keep the server hosted and monitored on the runner (default: 30 minutes)
+5. The workflow installs all dependencies, automatically purges any legacy demo levels, starts the Express server, runs health checks against `/api/health` and `/api/levels`, and reports ready status!
+
+#### Option B: Docker / Cloud Run
 
 You can deploy `server/server.js` using Docker or Google Cloud Run by pointing to the `/server` directory and binding to `$PORT`.
 
-#### Option B: Render / Railway / Vercel
+#### Option C: Render / Railway / Vercel
 
 1. Create a new Web Service pointing to your GitHub repository.
 2. Set the **Root Directory** to `server`.
@@ -272,9 +264,36 @@ export interface LevelData {
 - `f` : Fast Speed Portal (1.3x)
 - `o` : Normal Speed Portal (1.0x)
 - `w` : Ship Mode ON Portal
-- `q` : Ship Mode OFF Portal
-- `*` : Collectible Gear
-- `e` : Finish Line
+- `q` : Cube Mode Portal
+- `a` : Ball Mode Portal (tap to flip gravity when grounded)
+- `u` : UFO Mode Portal (mid-air flap jumps)
+- `v` : Wave Mode Portal (diagonal dart flight)
+- `k` : Robot Mode Portal (grounded jump, hold to boost significantly higher)
+- `y` : Swing Mode Portal (mid-air tap toggles gravity)
+- `x` : Spinning Saw Blade
+- `1` : Speed 0.5x Portal (0.8x)
+- `2` : Speed 1.0x Portal (1.0x)
+- `3` : Speed 2.0x Portal (1.3x)
+- `4` : Speed 3.0x Portal (1.6x)
+- `*` : Collectible Coin
+- `e` : Finish Line (Full-height checkered goal line)
+
+---
+
+## 🎮 Geometry Dash .GMD File Import (PC Only)
+
+Cube Dash includes a `.GMD` (Geometry Dash Level file) importer that allows PC players to import custom Geometry Dash levels directly into Cube Dash!
+
+- **Platform-Restricted**: Per performance and device requirements, `.GMD` import is exclusively active when a PC / Desktop browser environment is detected.
+- **Dynamic Vertical Camera**: Smoothly tracks the player's Y position as they fly high or jump over towering structures.
+- **Supported Formats**:
+  - GDShare / MegaHack XML Plists (`.gmd`, `.plist`, `.xml`) with Base64 GZIP / ZLIB `k4` compressed level strings.
+  - Geometry Dash JSON level exports (`.gmd`, `.json`).
+  - Raw uncompressed or base64 Geometry Dash level object strings (`kS38,...`).
+- **Object Translation**: Automatically converts Geometry Dash spikes, blocks, half-slabs, bounce pads, jump rings, gravity portals, vehicle portals (Cube, Ship, Ball, UFO, Wave, Robot, Swing), saws, speed triggers, and coins into Cube Dash's physical grid engine.
+- **Access Points**:
+  - **Community Repository**: Click `IMPORT .GMD (PC)` or use the `BROWSE .GMD` button in the import box.
+  - **Level Editor**: Click `Import .GMD (PC)` to load a GD level directly into the editor for tuning and playtesting.
 
 ---
 

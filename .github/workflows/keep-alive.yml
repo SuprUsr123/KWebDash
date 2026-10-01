@@ -1,0 +1,25 @@
+name: Keep Render Alive (Ping)
+
+on:
+  schedule:
+    # Runs every 10 minutes (Render spins down after 15 minutes of inactivity)
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Render server URL to ping (e.g. https://cube-dash-server.onrender.com)'
+        required: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Health Endpoint
+        run: |
+          TARGET_URL="${{ secrets.RENDER_SERVER_URL || github.event.inputs.url || vars.RENDER_SERVER_URL }}"
+          if [ -z "$TARGET_URL" ]; then
+            echo "No RENDER_SERVER_URL set. Add it in Repo Settings -> Secrets/Variables -> Actions."
+            exit 0
+          fi
+          echo "Pinging: $TARGET_URL/api/health"
+          curl -s -f -m 30 "$TARGET_URL/api/health" || curl -s -f -m 30 "$TARGET_URL" || echo "Ping failed or server waking up."

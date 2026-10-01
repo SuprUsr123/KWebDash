@@ -6,40 +6,43 @@
   --stripe-pattern: repeating-linear-gradient(0deg, transparent, transparent 2px, #000 3px, #000 4px);
 }
 
+/* NO ANIMATIONS / TRANSITIONS for E-ink display performance */
 * {
   box-sizing: border-box;
+  transition: none !important;
+  animation: none !important;
 }
 
+/* System 7 Desktop Environment */
 body {
-  image-rendering: pixelated;
+  background-color: #e5e5e5; /* Desktop Gray */
   font-family: "Geneva", "Verdana", sans-serif;
-  background-color: #e5e5e5;
-  color: #000000;
+  image-rendering: pixelated; /* CRITICAL for crisp edges */
   margin: 0;
-  padding: 10px;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden; /* Prevent body scroll */
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   user-select: none;
   touch-action: none;
 }
 
+/* Standard System 7 Window */
 .window {
   background: white;
   border: 2px solid black;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow); /* Hard, non-blurred shadow */
+  width: 95%;
+  max-width: 600px; /* Standard Tablet Width */
+  height: 90vh; /* Standard Window Height */
   display: flex;
   flex-direction: column;
-  width: 100%;
-  max-width: 600px;
-  min-height: fit-content;
-  max-height: 95vh;
-  overflow-y: auto;
   position: relative;
+  overflow: hidden;
 }
 
+/* Mandatory Title Bar Structure */
 .title-bar {
   height: 35px;
   border-bottom: 2px solid black;
@@ -47,11 +50,11 @@ body {
   align-items: center;
   justify-content: center;
   background: white;
-  padding: 0 10px;
-  position: relative;
+  position: relative; /* Context for absolute children */
   flex-shrink: 0;
 }
 
+/* The Striped Background Layer (z-index: 0) */
 .title-stripes {
   position: absolute;
   top: 4px;
@@ -62,19 +65,19 @@ body {
   z-index: 0;
 }
 
+/* The centered text with white background blocking stripes (z-index: 1) */
 .title-text {
   background: white;
   padding: 0 15px;
   font-weight: bold;
-  z-index: 1;
   font-size: 1.1rem;
+  z-index: 1; /* Sits above stripes */
+  font-family: "Geneva", "Verdana", sans-serif;
   display: inline-flex;
   align-items: center;
-  height: 100%;
-  box-sizing: border-box;
-  font-family: "Geneva", "Verdana", sans-serif;
 }
 
+/* Standard Close Button (z-index: 2) */
 .close-box {
   position: absolute;
   left: 10px;
@@ -82,22 +85,22 @@ body {
   height: 18px;
   border: 2px solid black;
   background: white;
-  z-index: 2;
+  z-index: 2; /* Sits above everything */
+  box-shadow: 2px 2px 0 black;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
   font-family: sans-serif;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   line-height: 1;
-  box-shadow: 2px 2px 0 black;
 }
 
 .close-box:active {
   background: black;
   color: white;
-  transform: translate(1px, 1px);
+  transform: translate(2px, 2px);
   box-shadow: none;
 }
 
@@ -114,14 +117,29 @@ body {
   font-weight: bold;
 }
 
+/* Beta Badge */
+.beta-badge {
+  font-size: 0.6rem;
+  margin-left: 5px;
+  border: 1px solid black;
+  padding: 1px 3px;
+  font-weight: bold;
+  font-family: sans-serif;
+  vertical-align: text-top;
+  display: inline-block;
+  background: white;
+  color: black;
+}
+
+/* Tab Navigation Bar (Flexbox without gap - margin on siblings) */
 .tab-nav-bar {
   display: flex;
   justify-content: center;
-  gap: 8px;
   background: #f0f0f0;
   padding: 8px 10px;
   border-bottom: 2px solid black;
   width: 100%;
+  flex-shrink: 0;
 }
 
 .tab-btn {
@@ -130,28 +148,36 @@ body {
   box-shadow: 2px 2px 0 black;
   font-family: "Courier New", monospace;
   font-weight: bold;
-  font-size: 0.75rem;
-  padding: 4px 12px;
+  font-size: 0.8rem;
+  padding: 6px 14px;
   cursor: pointer;
   text-transform: uppercase;
+  min-height: 38px;
+}
+
+.tab-btn + .tab-btn {
+  margin-left: 8px; /* Sibling margin instead of flex gap */
 }
 
 .tab-btn.active,
 .tab-btn:active {
   background: black;
   color: white;
-  transform: translate(1px, 1px);
+  transform: translate(2px, 2px);
   box-shadow: none;
 }
 
+/* Window Content Viewport */
 .window-content {
-  padding: 15px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
   background: white;
   position: relative;
   flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .screen {
@@ -180,6 +206,7 @@ h2.menu-heading {
   margin-bottom: 10px;
 }
 
+/* Level Selection Cards (Touch targets >= 48px) */
 .lvl-row {
   display: flex;
   margin-bottom: 8px;
@@ -245,19 +272,20 @@ h2.menu-heading {
   color: white;
 }
 
+/* Pager Controls (Touch targets >= 48px) */
 .pager-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .pager-btn {
   min-width: 90px;
-  min-height: 40px;
+  min-height: 48px;
   background: white;
   border: 2px solid black;
-  box-shadow: 3px 3px 0 black;
+  box-shadow: 2px 2px 0 black;
   font-family: "Courier New", monospace;
   font-weight: bold;
   font-size: 0.8rem;
@@ -285,20 +313,21 @@ h2.menu-heading {
   line-height: 1.4;
 }
 
+/* System Button (Touch targets >= 48px) */
 .sys-btn {
   display: block;
   margin: 0 auto;
   min-width: 160px;
-  min-height: 40px;
+  min-height: 48px;
   background: white;
   border: 2px solid black;
-  box-shadow: 3px 3px 0 black;
+  box-shadow: 2px 2px 0 black;
   font-family: inherit;
   font-weight: bold;
   font-size: 0.85rem;
   text-transform: uppercase;
   cursor: pointer;
-  padding: 6px 14px;
+  padding: 8px 16px;
 }
 
 .sys-btn:active {
@@ -308,6 +337,7 @@ h2.menu-heading {
   box-shadow: none;
 }
 
+/* HUD Row (No gap - uses space-between) */
 .hud-row {
   display: flex;
   align-items: center;
@@ -330,6 +360,7 @@ h2.menu-heading {
   background: black;
 }
 
+/* Canvas Display */
 canvas {
   display: block;
   margin: 10px auto 0 auto;
@@ -340,6 +371,7 @@ canvas {
   touch-action: none;
 }
 
+/* Tool Button */
 .tool-btn {
   background: white;
   border: 2px solid black;
@@ -347,18 +379,47 @@ canvas {
   font-family: "Courier New", monospace;
   font-weight: bold;
   font-size: 0.75rem;
-  padding: 4px 8px;
+  padding: 6px 10px;
   cursor: pointer;
+  min-height: 36px;
 }
 
 .tool-btn:active,
 .tool-btn.active {
   background: black;
   color: white;
-  transform: translate(1px, 1px);
+  transform: translate(2px, 2px);
   box-shadow: none;
 }
 
+/* System 7 Modal Overlay (z-index: 10000 - Always top-most) */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000; /* Top-most layer per Kindle specification */
+}
+
+/* Modal Box */
+.modal-box {
+  background: white;
+  border: 2px solid black;
+  box-shadow: 4px 4px 0 black;
+  padding: 16px;
+  max-width: 90%;
+  width: 440px;
+  box-sizing: border-box;
+  font-family: "Geneva", "Verdana", sans-serif;
+  text-align: left;
+}
+
+/* Overlay for In-Game Messages */
 .overlay {
   display: none;
   position: absolute;
@@ -386,5 +447,3 @@ canvas {
   text-transform: uppercase;
   letter-spacing: 2px;
 }
-
-

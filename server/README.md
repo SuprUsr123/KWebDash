@@ -34,7 +34,16 @@ This folder contains a dedicated Node.js / Express backend server designed to ho
 
 ## ☁️ Deployment Instructions
 
-You can deploy this level hosting server to any Cloud platform:
+You can deploy this level hosting server to any Cloud platform or host it via GitHub Actions:
 
-- **Cloud Run / Docker**: Package `server.js` and expose port `3001` or `$PORT`.
-- **Render / Vercel / Railway**: Set root directory to `server`, run command `npm start`.
+### 1. GitHub Actions Trigger (Automated & Manual)
+A GitHub Actions workflow is provided at `.github/workflows/host-server.yml`.
+- Go to the **Actions** tab on GitHub -> **Host Level Server** -> **Run workflow**.
+- Set your preferred port (`3001`), server mode (`standalone` or `fullstack`), and runtime duration.
+- It will verify data hygiene (guaranteeing no legacy demo levels exist), boot the server, and verify `/api/health` and `/api/levels`.
+
+### 2. Cloud Run / Docker
+Package `server.js` and expose port `3001` or `$PORT`.
+
+### 3. Render / Vercel / Railway
+Set root directory to `server`, run command `npm start`.

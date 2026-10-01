@@ -1,6 +1,8 @@
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
+ * Kindle / Low-RAM Config Modal
+ * Compliant with Kindle Browser Compatibility Guide (.modal-overlay / .modal-box, no flex gap, ES2019).
  */
 
 import React from 'react';
@@ -21,18 +23,9 @@ export const KindleSettingsModal: React.FC<KindleSettingsModalProps> = ({
   onManualRefresh
 }) => {
   return (
-    <div className="overlay active" style={{ zIndex: 100 }}>
-      <div
-        style={{
-          background: 'white',
-          border: '2px solid black',
-          boxShadow: '4px 4px 0 black',
-          padding: '16px',
-          maxWidth: '480px',
-          width: '90%',
-          textAlign: 'left'
-        }}
-      >
+    <div className="modal-overlay">
+      <div className="modal-box">
+        {/* Title Bar */}
         <div
           style={{
             display: 'flex',
@@ -43,33 +36,36 @@ export const KindleSettingsModal: React.FC<KindleSettingsModalProps> = ({
             marginBottom: '12px'
           }}
         >
-          <h2 style={{ fontSize: '1rem', margin: 0, display: 'flex', alignItems: 'center' }}>
+          <span style={{ fontSize: '1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
             <Smartphone size={16} style={{ marginRight: '6px' }} /> KINDLE / LOW-RAM CONFIG
-          </h2>
+          </span>
           <button className="close-box" onClick={onClose} style={{ position: 'static' }}>
             X
           </button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontFamily: 'monospace', fontSize: '0.8rem' }}>
+        {/* Form Container (No flex gap - uses child margins) */}
+        <div style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
           {/* Enable E-Ink Simulation */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-            <input
-              type="checkbox"
-              checked={config.enabled}
-              onChange={e => onChange({ ...config, enabled: e.target.checked })}
-              style={{ accentColor: 'black', width: '16px', height: '16px' }}
-            />
-            Enable E-Ink Display Mode & Simulation
-          </label>
+          <div style={{ marginBottom: '10px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', fontWeight: 'bold', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={config.enabled}
+                onChange={e => onChange({ ...config, enabled: e.target.checked })}
+                style={{ accentColor: 'black', width: '18px', height: '18px', marginRight: '8px' }}
+              />
+              Enable E-Ink Display Mode & Simulation
+            </label>
+          </div>
 
           {/* FPS Cap */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
             <span>Target FPS Cap:</span>
             <select
               value={config.fps}
               onChange={e => onChange({ ...config, fps: Number(e.target.value) })}
-              style={{ border: '2px solid black', padding: '2px 6px', fontWeight: 'bold' }}
+              style={{ border: '2px solid black', padding: '4px 8px', fontWeight: 'bold', background: 'white' }}
             >
               <option value={10}>10 FPS (Kindle E-Ink)</option>
               <option value={15}>15 FPS (Standard E-Paper)</option>
@@ -79,8 +75,8 @@ export const KindleSettingsModal: React.FC<KindleSettingsModalProps> = ({
           </div>
 
           {/* Ghosting */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ marginBottom: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
               <span>E-Ink Ghosting Persistence:</span>
               <b>{Math.round(config.ghosting * 100)}%</b>
             </div>
@@ -90,12 +86,12 @@ export const KindleSettingsModal: React.FC<KindleSettingsModalProps> = ({
               max={85}
               value={Math.round(config.ghosting * 100)}
               onChange={e => onChange({ ...config, ghosting: Number(e.target.value) / 100 })}
-              style={{ accentColor: 'black' }}
+              style={{ width: '100%', accentColor: 'black' }}
             />
           </div>
 
           {/* Input Lag Test */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
             <span>Simulated Touch Lag:</span>
             <label>
               <input
@@ -105,20 +101,20 @@ export const KindleSettingsModal: React.FC<KindleSettingsModalProps> = ({
                 step={10}
                 value={config.inputLagMs}
                 onChange={e => onChange({ ...config, inputLagMs: Number(e.target.value) })}
-                style={{ border: '2px solid black', padding: '2px', width: '60px', fontWeight: 'bold' }}
-              />{' '}
+                style={{ border: '2px solid black', padding: '2px 4px', width: '60px', fontWeight: 'bold', marginRight: '4px' }}
+              />
               ms
             </label>
           </div>
 
           {/* Manual Flash Refresh */}
-          <div style={{ borderTop: '1px solid black', paddingTop: '8px', marginTop: '4px' }}>
+          <div style={{ borderTop: '1px solid black', paddingTop: '10px', marginTop: '6px', marginBottom: '10px' }}>
             <button
               className="sys-btn"
               onClick={onManualRefresh}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '44px' }}
             >
-              <RefreshCw size={12} style={{ marginRight: '6px' }} /> TRIGGER E-INK FLASH REFRESH
+              <RefreshCw size={14} style={{ marginRight: '6px' }} /> TRIGGER E-INK FLASH REFRESH
             </button>
           </div>
 
@@ -128,22 +124,22 @@ export const KindleSettingsModal: React.FC<KindleSettingsModalProps> = ({
               background: '#f0f0f0',
               border: '1px solid black',
               padding: '8px',
-              marginTop: '6px',
-              fontSize: '0.75rem'
+              fontSize: '0.75rem',
+              lineHeight: '1.4'
             }}
           >
             <div style={{ fontWeight: 'bold', marginBottom: '4px', display: 'flex', alignItems: 'center' }}>
               <Cpu size={12} style={{ marginRight: '4px' }} /> Memory Footprint (256MB Kindle Limit):
             </div>
-            <div>{"• Grid Matrix Memory: < 250 KB"}</div>
+            <div>• Grid Matrix Memory: &lt; 250 KB</div>
             <div>• Texture/Canvas Buffers: ~ 1.1 MB (Zero GC Spikes)</div>
             <div>• Execution Mode: JIT-less ES2019 Compatible</div>
             <div>• CSS Layout: Flex without Gap (Chromium 75 Safe)</div>
           </div>
         </div>
 
-        <div style={{ marginTop: '12px', textAlign: 'right' }}>
-          <button className="sys-btn" onClick={onClose} style={{ padding: '6px 16px' }}>
+        <div style={{ marginTop: '14px', textAlign: 'right' }}>
+          <button className="sys-btn" onClick={onClose} style={{ minWidth: '90px', minHeight: '40px', padding: '6px 18px' }}>
             OK
           </button>
         </div>
