@@ -16,10 +16,6 @@ jobs:
     steps:
       - name: Ping Health Endpoint
         run: |
-          TARGET_URL="${{ secrets.RENDER_SERVER_URL || github.event.inputs.url || vars.RENDER_SERVER_URL }}"
-          if [ -z "$TARGET_URL" ]; then
-            echo "No RENDER_SERVER_URL set. Add it in Repo Settings -> Secrets/Variables -> Actions."
-            exit 0
-          fi
+          TARGET_URL="${{ secrets.RENDER_SERVER_URL || github.event.inputs.url || vars.RENDER_SERVER_URL || 'https://kwebdash.onrender.com' }}"
           echo "Pinging: $TARGET_URL/api/health"
           curl -s -f -m 30 "$TARGET_URL/api/health" || curl -s -f -m 30 "$TARGET_URL" || echo "Ping failed or server waking up."

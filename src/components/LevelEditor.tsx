@@ -27,6 +27,7 @@ import { parseGMDContent } from '../utils/gmdParser';
 
 interface LevelEditorProps {
   initialLevel?: LevelData;
+  defaultAuthor?: string;
   einkConfig: EInkConfig;
   onSaveToCommunity: (level: LevelData) => void;
   onQuitToMenu: () => void;
@@ -34,13 +35,14 @@ interface LevelEditorProps {
 
 export const LevelEditor: React.FC<LevelEditorProps> = ({
   initialLevel,
+  defaultAuthor,
   einkConfig,
   onSaveToCommunity,
   onQuitToMenu
 }) => {
   const [appMode, setAppMode] = useState<'edit' | 'play'>('edit');
   const [lvlName, setLvlName] = useState<string>((initialLevel && initialLevel.name) ? initialLevel.name : 'MY GRID LEVEL');
-  const [lvlAuthor, setLvlAuthor] = useState<string>((initialLevel && initialLevel.author) ? initialLevel.author : 'Creator');
+  const [lvlAuthor, setLvlAuthor] = useState<string>((initialLevel && initialLevel.author) ? initialLevel.author : (defaultAuthor || 'Creator'));
   const [lvlDiff, setLvlDiff] = useState<number>((initialLevel && typeof initialLevel.diff === 'number') ? initialLevel.diff : 1);
   const [lvlSpeed, setLvlSpeed] = useState<number>(() => {
     if (initialLevel && typeof initialLevel.speed === 'number') {
@@ -62,16 +64,24 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
     setIsPC(isPCDevice());
   }, []);
 
-  // 12-row grid data matrix state
+  // Grid data matrix state (dynamically supports 12 to 36 rows for tall & branched levels)
   const [gridData, setGridData] = useState<string[][]>(() => {
-    if (initialLevel && initialLevel.grid && initialLevel.grid.length === ROWS) {
+    if (initialLevel && initialLevel.grid && initialLevel.grid.length > 0) {
       return initialLevel.grid.map((rowStr: string) => rowStr.split(''));
     }
     const cols = (initialLevel && initialLevel.cols) ? initialLevel.cols : 60;
-    const g = Array.from({ length: ROWS }, () => Array(cols).fill('.'));
-    // Add default finish line at end
-    for (let r = 2; r < 10; r++) g[r][cols - 2] = 'e';
+    const rows = (initialLevel && initialLevel.rows) ? initialLevel.rows : ROWS;
+    const g = Array.from({ length: rows }, () => Array(cols).fill('.'));
+    const floorR = (initialLevel && typeof initialLevel.floorRow === 'number') ? initialLevel.floorRow : (rows > 12 ? rows - 3 : 9);
+    for (let r = 2; r <= floorR; r++) g[r][cols - 2] = 'e';
     return g;
+  });
+
+  const [editorScrollY, setEditorScrollY] = useState<number>(() => {
+    const totalRows = (initialLevel && initialLevel.grid && initialLevel.grid.length) ? initialLevel.grid.length : (initialLevel?.rows || ROWS);
+    const floorR = (initialLevel && typeof initialLevel.floorRow === 'number') ? initialLevel.floorRow : (totalRows > 12 ? totalRows - 3 : 9);
+    const groundScrollY = (floorR + 1) * TILE_SIZE - CANVAS_H + 48;
+    return Math.max(0, Math.min(Math.max(0, (totalRows - 12) * TILE_SIZE), groundScrollY));
   });
 
   const [noCeiling, setNoCeiling] = useState<boolean>(initialLevel?.noCeiling ?? false);
@@ -82,7 +92,7 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
   // Resize column count
   const handleResizeCols = (newCols: number) => {
     if (newCols < 15) newCols = 15;
-    if (newCols > 300) newCols = 300;
+    if (newCols > 1200) newCols = 1200;
     setLvlCols(newCols);
 
     setGridData(prevGrid => {
@@ -97,11 +107,54 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
     });
   };
 
+  const handleAddRowAbove = () => {
+    if (gridData.length >= 36) {
+      setEditorStatusMsg('Maximum grid height reached (36 rows).');
+      setTimeout(() => setEditorStatusMsg(''), 2500);
+      return;
+    }
+    setGridData(prev => [Array(lvlCols).fill('.'), ...prev.map(r => [...r])]);
+    setEditorScrollY(s => Math.min(Math.max(0, (gridData.length + 1 - 12) * TILE_SIZE), s + TILE_SIZE));
+    setEditorStatusMsg('Added row above (expanded ceiling headroom).');
+    setTimeout(() => setEditorStatusMsg(''), 2500);
+  };
+
+  const handleAddRowBelow = () => {
+    if (gridData.length >= 36) {
+      setEditorStatusMsg('Maximum grid height reached (36 rows).');
+      setTimeout(() => setEditorStatusMsg(''), 2500);
+      return;
+    }
+    setGridData(prev => [...prev.map(r => [...r]), Array(lvlCols).fill('.')]);
+    setEditorStatusMsg('Added row below.');
+    setTimeout(() => setEditorStatusMsg(''), 2500);
+  };
+
+  const handleRemoveTopRow = () => {
+    if (gridData.length <= 12) {
+      setEditorStatusMsg('Minimum grid height is 12 rows.');
+      setTimeout(() => setEditorStatusMsg(''), 2500);
+      return;
+    }
+    const hasItems = gridData[0].some(c => c !== '.');
+    if (hasItems) {
+      setEditorStatusMsg('Cannot remove top row: contains tiles! Erase tiles first.');
+      setTimeout(() => setEditorStatusMsg(''), 2500);
+      return;
+    }
+    setGridData(prev => prev.slice(1).map(r => [...r]));
+    setEditorScrollY(s => Math.max(0, s - TILE_SIZE));
+    setEditorStatusMsg('Removed empty top row.');
+    setTimeout(() => setEditorStatusMsg(''), 2500);
+  };
+
   const [editorStatusMsg, setEditorStatusMsg] = useState<string>('');
 
   const clearGrid = () => {
-    const g = Array.from({ length: ROWS }, () => Array(lvlCols).fill('.'));
-    for (let r = 2; r < 10; r++) g[r][lvlCols - 2] = 'e';
+    const curRows = gridData.length;
+    const g = Array.from({ length: curRows }, () => Array(lvlCols).fill('.'));
+    const floorR = curRows > 12 ? curRows - 3 : 9;
+    for (let r = 2; r <= floorR; r++) g[r][lvlCols - 2] = 'e';
     setGridData(g);
     setEditorStatusMsg('Grid cleared.');
     setTimeout(() => setEditorStatusMsg(''), 2500);
@@ -118,9 +171,21 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-    // Floor boundary (Ceiling is invisible in editor as requested)
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, FLOOR_Y, CANVAS_W, 4);
+    // Dynamic row window calculation based on editorScrollY
+    const startRow = Math.floor(editorScrollY / TILE_SIZE);
+    const endRow = Math.min(gridData.length - 1, startRow + Math.ceil(CANVAS_H / TILE_SIZE) + 1);
+
+    // Floor boundary (calculated dynamically based on grid length)
+    const effectiveFloorRow = (initialLevel && typeof initialLevel.floorRow === 'number')
+      ? initialLevel.floorRow
+      : (gridData.length > 12 ? gridData.length - 3 : 9);
+    const floorY = (effectiveFloorRow + 1) * TILE_SIZE;
+    const drawFloorY = Math.round(floorY - editorScrollY);
+
+    if (drawFloorY >= 0 && drawFloorY <= CANVAS_H) {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, drawFloorY, CANVAS_W, 4);
+    }
 
     // Grid lines
     ctx.fillStyle = '#e5e5e5';
@@ -131,17 +196,20 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
       const lineX = Math.round(c * TILE_SIZE - editorScrollX);
       ctx.fillRect(lineX, 0, 1, CANVAS_H);
     }
-    for (let r = 0; r <= ROWS; r++) {
-      ctx.fillRect(0, Math.round(r * TILE_SIZE), CANVAS_W, 1);
+    for (let r = startRow; r <= endRow + 1; r++) {
+      const lineY = Math.round(r * TILE_SIZE - editorScrollY);
+      if (lineY >= 0 && lineY <= CANVAS_H) {
+        ctx.fillRect(0, lineY, CANVAS_W, 1);
+      }
     }
 
     // Render tiles from gridData
-    for (let r = 0; r < ROWS; r++) {
+    for (let r = startRow; r <= endRow; r++) {
       for (let c = startCol; c <= Math.min(endCol, gridData[0].length - 1); c++) {
         const ch = gridData[r][c];
         if (ch === '.') continue;
         const ox = Math.round(c * TILE_SIZE - editorScrollX);
-        const oy = Math.round(r * TILE_SIZE);
+        const oy = Math.round(r * TILE_SIZE - editorScrollY);
 
         if (ch === 's' || ch === 'D') {
           // Spike (Full Floor) or Deco Spike (Safe decoration)
@@ -573,7 +641,19 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
         }
       }
     }
-  }, [appMode, editorScrollX, gridData]);
+  }, [appMode, editorScrollX, editorScrollY, gridData, noCeiling]);
+
+  // Mouse wheel interaction on canvas for two-axis scrolling
+  const handleCanvasWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      const dx = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+      setEditorScrollX(s => Math.max(0, Math.min(maxScroll, s + (dx > 0 ? TILE_SIZE * 2 : -TILE_SIZE * 2))));
+    } else {
+      // deltaY > 0 scrolls down towards floor; deltaY < 0 scrolls up towards ceiling
+      setEditorScrollY(s => Math.max(0, Math.min(maxScrollY, s + (e.deltaY > 0 ? TILE_SIZE * 2 : -TILE_SIZE * 2))));
+    }
+  };
 
   // Pointer interaction for grid tile editing
   const handleCanvasPointer = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -588,15 +668,16 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
     const my = (e.clientY - rect.top) * scaleY;
 
     const worldX = mx + editorScrollX;
+    const worldY = my + editorScrollY;
     const col = Math.floor(worldX / TILE_SIZE);
-    const row = Math.floor(my / TILE_SIZE);
+    const row = Math.floor(worldY / TILE_SIZE);
 
-    if (row >= 0 && row < ROWS && col >= 0 && col < lvlCols) {
+    if (row >= 0 && row < gridData.length && col >= 0 && col < lvlCols) {
       setGridData(prevGrid => {
         const currentVal = prevGrid[row][col];
         if (currentTile === '*' && currentVal !== '*') {
           let count = 0;
-          for (let r = 0; r < ROWS; r++) {
+          for (let r = 0; r < prevGrid.length; r++) {
             for (let c = 0; c < lvlCols; c++) {
               if (prevGrid[r][c] === '*') count++;
             }
@@ -621,6 +702,10 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
       gearsCount += (s.match(/\*/g) || []).length;
     });
 
+    const floorR = (initialLevel && typeof initialLevel.floorRow === 'number')
+      ? initialLevel.floorRow
+      : (gridData.length > 12 ? gridData.length - 3 : 9);
+
     return {
       id: (initialLevel && initialLevel.id) ? initialLevel.id : `custom-${Date.now()}`,
       name: lvlName.toUpperCase(),
@@ -628,7 +713,8 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
       diff: lvlDiff,
       speed: lvlSpeed,
       cols: lvlCols,
-      rows: ROWS,
+      rows: gridData.length,
+      floorRow: floorR,
       grid: gridStrings,
       gearsTotal: gearsCount,
       isCommunity: true,
@@ -641,10 +727,11 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
 
   const jumpToStartPos = () => {
     for (let c = 0; c < lvlCols; c++) {
-      for (let r = 0; r < ROWS; r++) {
+      for (let r = 0; r < gridData.length; r++) {
         if (gridData[r] && gridData[r][c] === 'S') {
           setEditorScrollX(Math.max(0, Math.min(maxScroll, c * TILE_SIZE - CANVAS_W / 2)));
-          setEditorStatusMsg(`Centered camera on StartPos at Col ${c}`);
+          setEditorScrollY(Math.max(0, Math.min(maxScrollY, r * TILE_SIZE - CANVAS_H / 2)));
+          setEditorStatusMsg(`Centered camera on StartPos at Col ${c}, Row ${r}`);
           return;
         }
       }
@@ -745,12 +832,16 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
         setLvlAuthor(lvl.author || 'GD Creator');
         setLvlSpeed(lvl.speed);
         setLvlDiff(lvl.diff);
+        if (lvl.noCeiling !== undefined) setNoCeiling(lvl.noCeiling);
+        const floorR = lvl.floorRow ?? (lvl.grid.length > 12 ? lvl.grid.length - 3 : 9);
+        const groundScrollY = (floorR + 1) * TILE_SIZE - CANVAS_H + 48;
+        setEditorScrollY(Math.max(0, Math.min(Math.max(0, (lvl.grid.length - 12) * TILE_SIZE), groundScrollY)));
         setEditorStatusMsg(`Loaded .GMD: ${lvl.name}`);
         const objCount = result.stats ? result.stats.objectCount : 0;
         setModalConfig({
           type: 'alert',
           title: 'GMD IMPORTED TO EDITOR',
-          message: `Loaded "${lvl.name}" into Level Editor!\nObstacles: ${objCount}, Columns: ${lvl.cols}`
+          message: `Loaded "${lvl.name}" into Level Editor!\nObstacles: ${objCount}, Rows: ${lvl.grid.length}, Columns: ${lvl.cols}\n\nNote: Portals are 3 blocks tall with 8 rotations. Use Vertical Scroll (▲/▼) and +Row Above to tweak levels until desirable!`
         });
       } else {
         setModalConfig({
@@ -806,11 +897,15 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
             setLvlAuthor(lvl.author || 'GD Creator');
             setLvlSpeed(lvl.speed);
             setLvlDiff(lvl.diff);
+            if (lvl.noCeiling !== undefined) setNoCeiling(lvl.noCeiling);
+            const floorR = lvl.floorRow ?? (lvl.grid.length > 12 ? lvl.grid.length - 3 : 9);
+            const groundScrollY = (floorR + 1) * TILE_SIZE - CANVAS_H + 48;
+            setEditorScrollY(Math.max(0, Math.min(Math.max(0, (lvl.grid.length - 12) * TILE_SIZE), groundScrollY)));
             setEditorStatusMsg(`Loaded .GMD: ${lvl.name}`);
             setModalConfig({
               type: 'alert',
               title: 'GMD IMPORT COMPLETE',
-              message: `Level "${lvl.name}" imported into editor successfully!`
+              message: `Level "${lvl.name}" imported into editor successfully!\nRows: ${lvl.grid.length}, Cols: ${lvl.cols}\n\nNote: Portals are 3 blocks tall with 8 rotations. Use Vertical Scroll (▲/▼) to tweak levels until desirable!`
             });
             return;
           }
@@ -818,17 +913,21 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
 
         try {
           const parsed = JSON.parse(trimmed) as LevelData;
-          if (parsed.grid && parsed.grid.length === ROWS) {
+          if (parsed.grid && Array.isArray(parsed.grid) && parsed.grid.length >= 12) {
             setGridData(parsed.grid.map((r: string) => r.split('')));
             if (parsed.cols) setLvlCols(parsed.cols);
             if (parsed.name) setLvlName(parsed.name);
             if (parsed.author) setLvlAuthor(parsed.author);
             if (parsed.speed) setLvlSpeed(parsed.speed);
             if (parsed.diff !== undefined) setLvlDiff(parsed.diff);
+            if (parsed.noCeiling !== undefined) setNoCeiling(parsed.noCeiling);
+            const floorR = (typeof parsed.floorRow === 'number') ? parsed.floorRow : (parsed.grid.length > 12 ? parsed.grid.length - 3 : 9);
+            const groundScrollY = (floorR + 1) * TILE_SIZE - CANVAS_H + 48;
+            setEditorScrollY(Math.max(0, Math.min(Math.max(0, (parsed.grid.length - 12) * TILE_SIZE), groundScrollY)));
             setModalConfig({
               type: 'alert',
               title: 'IMPORT COMPLETE',
-              message: `Level "${parsed.name || 'Custom'}" imported successfully!`
+              message: `Level "${parsed.name || 'Custom'}" imported successfully! (${parsed.grid.length} rows, ${parsed.cols || parsed.grid[0].length} cols)`
             });
             return;
           } else if (parsed.name && (parsed as any).k4) {
@@ -841,6 +940,10 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
               setLvlAuthor(lvl.author || 'GD Creator');
               setLvlSpeed(lvl.speed);
               setLvlDiff(lvl.diff);
+              if (lvl.noCeiling !== undefined) setNoCeiling(lvl.noCeiling);
+              const floorR = lvl.floorRow ?? (lvl.grid.length > 12 ? lvl.grid.length - 3 : 9);
+              const groundScrollY = (floorR + 1) * TILE_SIZE - CANVAS_H + 48;
+              setEditorScrollY(Math.max(0, Math.min(Math.max(0, (lvl.grid.length - 12) * TILE_SIZE), groundScrollY)));
               setEditorStatusMsg(`Loaded .GMD: ${lvl.name}`);
               setModalConfig({
                 type: 'alert',
@@ -853,7 +956,7 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
             setModalConfig({
               type: 'alert',
               title: 'IMPORT ERROR',
-              message: 'Invalid level format: grid must have exactly 12 string rows.'
+              message: 'Invalid level format: grid must have at least 12 string rows.'
             });
             return;
           }
@@ -868,6 +971,10 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
             setLvlAuthor(lvl.author || 'GD Creator');
             setLvlSpeed(lvl.speed);
             setLvlDiff(lvl.diff);
+            if (lvl.noCeiling !== undefined) setNoCeiling(lvl.noCeiling);
+            const floorR = lvl.floorRow ?? (lvl.grid.length > 12 ? lvl.grid.length - 3 : 9);
+            const groundScrollY = (floorR + 1) * TILE_SIZE - CANVAS_H + 48;
+            setEditorScrollY(Math.max(0, Math.min(Math.max(0, (lvl.grid.length - 12) * TILE_SIZE), groundScrollY)));
             setEditorStatusMsg(`Loaded .GMD: ${lvl.name}`);
             setModalConfig({
               type: 'alert',
@@ -888,6 +995,7 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
   };
 
   const maxScroll = Math.max(0, lvlCols * TILE_SIZE - CANVAS_W + 100);
+  const maxScrollY = Math.max(0, (gridData.length - 12) * TILE_SIZE);
 
   return (
     <div className="window-content" style={{ width: '100%' }}>
@@ -957,7 +1065,17 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
                 type="text"
                 value={lvlName}
                 onChange={e => setLvlName(e.target.value)}
-                style={{ border: '2px solid black', padding: '2px 4px', width: '110px' }}
+                style={{ border: '2px solid black', padding: '2px 4px', width: '100px' }}
+              />
+            </label>
+            <label style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 'bold', marginRight: '10px', marginBottom: '4px' }}>
+              Author:{' '}
+              <input
+                type="text"
+                value={lvlAuthor}
+                onChange={e => setLvlAuthor(e.target.value)}
+                placeholder="Author name"
+                style={{ border: '2px solid black', padding: '2px 4px', width: '90px' }}
               />
             </label>
             <label style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 'bold', marginRight: '10px', marginBottom: '4px' }}>
@@ -987,17 +1105,61 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
                 <option value={4.0}>4.0x (Fastest)</option>
               </select>
             </label>
-            <label style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px' }}>
+            <label style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 'bold', marginRight: '10px', marginBottom: '4px' }}>
               Cols:{' '}
               <input
                 type="number"
                 min={20}
-                max={300}
+                max={1200}
                 value={lvlCols}
                 onChange={e => handleResizeCols(Number(e.target.value))}
                 style={{ border: '2px solid black', padding: '2px', width: '55px' }}
               />
             </label>
+            <label style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 'bold', marginRight: '8px', marginBottom: '4px' }}>
+              Rows:{' '}
+              <span style={{ border: '2px solid black', padding: '2px 6px', background: 'white' }}>{gridData.length}</span>
+            </label>
+            <button
+              className="tool-btn"
+              onClick={handleAddRowAbove}
+              style={{ fontSize: '0.7rem', padding: '3px 6px', marginRight: '4px', marginBottom: '4px' }}
+              title="Add empty row above (expands ceiling height upwards for tall / branched levels)"
+            >
+              + ROW ABOVE
+            </button>
+            <button
+              className="tool-btn"
+              onClick={handleRemoveTopRow}
+              style={{ fontSize: '0.7rem', padding: '3px 6px', marginRight: '4px', marginBottom: '4px' }}
+              title="Remove empty top row"
+              disabled={gridData.length <= 12}
+            >
+              - ROW TOP
+            </button>
+            <button
+              className="tool-btn"
+              onClick={handleAddRowBelow}
+              style={{ fontSize: '0.7rem', padding: '3px 6px', marginBottom: '4px' }}
+              title="Add empty row at bottom"
+            >
+              + ROW BELOW
+            </button>
+          </div>
+
+          {/* Authentic GD Portal Info & Level Tweaking Guide */}
+          <div
+            style={{
+              background: '#f4f4f4',
+              border: '2px solid #000000',
+              padding: '6px 10px',
+              fontFamily: 'monospace',
+              fontSize: '0.75rem',
+              marginBottom: '8px',
+              lineHeight: '1.4'
+            }}
+          >
+            <b>ℹ️ NOTE:</b> Portals are <b>3 blocks tall</b> with 8 rotations (0°, 45°, 90°, 135°, 180°, -135°, -90°, -45°). For tall or branched coin routes, use <b>+ ROW ABOVE</b> and the <b>Vertical Scroll (▲/▼)</b> controls to tweak and adjust the paths until desirable!
           </div>
 
           {/* Palette Selector (No flex gap - uses child margins) */}
@@ -1025,12 +1187,13 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
             ))}
           </div>
 
-          {/* Editor Canvas Container */}
-          <div style={{ position: 'relative', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          {/* Editor Canvas Container with Vertical Scroll Strip */}
+          <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'stretch' }}>
             <canvas
               ref={canvasRef}
               width={CANVAS_W}
               height={CANVAS_H}
+              onWheel={handleCanvasWheel}
               onPointerDown={e => {
                 isMouseDownRef.current = true;
                 handleCanvasPointer(e);
@@ -1045,90 +1208,184 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
                 border: '4px solid black',
                 boxShadow: '4px 4px 0 black',
                 background: 'white',
-                cursor: 'pointer',
+                cursor: 'crosshair',
                 touchAction: 'none'
               }}
             />
 
-            {/* Scroll Slider Controls (No flex gap - child margins) */}
-            <div style={{ display: 'flex', alignItems: 'center', width: '100%', marginTop: '8px' }}>
-              <button className="tool-btn" onClick={() => setEditorScrollX(s => Math.max(0, s - TILE_SIZE * 4))} style={{ marginRight: '6px' }}>
-                &lt;&lt;
-              </button>
-              <input
-                type="range"
-                min={0}
-                max={maxScroll}
-                value={editorScrollX}
-                onChange={e => setEditorScrollX(Number(e.target.value))}
-                style={{ flex: 1, accentColor: 'black', marginRight: '6px' }}
-              />
-              <button className="tool-btn" onClick={() => setEditorScrollX(s => Math.min(maxScroll, s + TILE_SIZE * 4))} style={{ marginRight: '8px' }}>
-                &gt;&gt;
-              </button>
-              <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 'bold', minWidth: '55px' }}>
-                Col: {Math.floor(editorScrollX / TILE_SIZE)}
-              </span>
-            </div>
-
-            {/* Kindle-Compliant Camera Controls & Flight Ceiling Bar */}
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                background: '#f2f2f2',
-                border: '2px solid black',
-                padding: '4px 6px',
-                marginTop: '8px',
-                width: '100%',
-                boxSizing: 'border-box'
-              }}
-            >
-              <span style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '0.75rem', marginRight: '6px' }}>
-                CAMERA:
-              </span>
-              <button className="tool-btn" onClick={() => setEditorScrollX(0)} style={{ marginRight: '4px', fontSize: '0.7rem', padding: '3px 6px' }} title="Jump camera to Start">
-                |◀ 0%
-              </button>
-              <button className="tool-btn" onClick={() => setEditorScrollX(s => Math.max(0, s - TILE_SIZE * 10))} style={{ marginRight: '4px', fontSize: '0.7rem', padding: '3px 6px' }} title="Scroll left 10 columns">
-                ◀◀ -10
-              </button>
-              <button className="tool-btn" onClick={() => setEditorScrollX(s => Math.max(0, s - TILE_SIZE * 2))} style={{ marginRight: '4px', fontSize: '0.7rem', padding: '3px 6px' }} title="Scroll left 2 columns">
-                ◀ -2
-              </button>
-              <button className="tool-btn" onClick={() => setEditorScrollX(s => Math.min(maxScroll, s + TILE_SIZE * 2))} style={{ marginRight: '4px', fontSize: '0.7rem', padding: '3px 6px' }} title="Scroll right 2 columns">
-                +2 ▶
-              </button>
-              <button className="tool-btn" onClick={() => setEditorScrollX(s => Math.min(maxScroll, s + TILE_SIZE * 10))} style={{ marginRight: '4px', fontSize: '0.7rem', padding: '3px 6px' }} title="Scroll right 10 columns">
-                +10 ▶▶
-              </button>
-              <button className="tool-btn" onClick={() => setEditorScrollX(maxScroll)} style={{ marginRight: '6px', fontSize: '0.7rem', padding: '3px 6px' }} title="Jump camera to End">
-                100% ▶|
-              </button>
-
-              {hasStartPos && (
-                <>
-                  <button className="tool-btn active" onClick={jumpToStartPos} style={{ marginRight: '4px', fontSize: '0.7rem', padding: '3px 6px' }} title="Jump camera directly to StartPos">
-                    ⚑ TO STARTPOS
-                  </button>
-                  <button className="tool-btn" onClick={clearStartPos} style={{ marginRight: '6px', fontSize: '0.7rem', padding: '3px 6px' }} title="Clear all StartPos objects so level can be published">
-                    CLEAR STARTPOS
-                  </button>
-                </>
-              )}
-
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+            {/* Vertical Scroll Strip Controls */}
+            {gridData.length > 12 && (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  marginLeft: '8px',
+                  background: '#f2f2f2',
+                  border: '2px solid black',
+                  padding: '4px 6px',
+                  boxSizing: 'border-box',
+                  justifyContent: 'space-between',
+                  minWidth: '58px'
+                }}
+              >
                 <button
-                  className={`tool-btn ${noCeiling ? 'active' : ''}`}
-                  onClick={() => setNoCeiling(v => !v)}
-                  style={{ fontSize: '0.7rem', padding: '3px 6px' }}
-                  title="Toggle whether flight gamemodes (Ship, UFO, Wave, Swing) are clamped by ceiling or have free open flight"
+                  className="tool-btn"
+                  onClick={() => setEditorScrollY(0)}
+                  style={{ fontSize: '0.75rem', padding: '3px 6px', width: '100%' }}
+                  title="Scroll to Top / Highest ceiling"
                 >
-                  CEILING: {noCeiling ? 'REMOVED (OPEN FLIGHT)' : 'DEFAULT (CLAMPED)'}
+                  ▲▲ TOP
+                </button>
+                <button
+                  className="tool-btn"
+                  onClick={() => setEditorScrollY(s => Math.max(0, s - TILE_SIZE * 2))}
+                  style={{ fontSize: '0.75rem', padding: '3px 6px', width: '100%', marginTop: '3px' }}
+                  title="Scroll UP 2 rows"
+                >
+                  ▲ UP
+                </button>
+
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '4px 0', flex: 1, justifyContent: 'center' }}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={maxScrollY}
+                    value={maxScrollY - editorScrollY}
+                    onChange={e => setEditorScrollY(maxScrollY - Number(e.target.value))}
+                    style={{
+                      writingMode: 'vertical-lr',
+                      direction: 'rtl',
+                      accentColor: 'black',
+                      height: '100px',
+                      cursor: 'ns-resize'
+                    }}
+                    title="Vertical Scroll Position"
+                  />
+                  <span style={{ fontFamily: 'monospace', fontSize: '0.65rem', fontWeight: 'bold', marginTop: '4px', textAlign: 'center' }}>
+                    R:{Math.floor(editorScrollY / TILE_SIZE)}-{Math.min(gridData.length, Math.floor(editorScrollY / TILE_SIZE) + 12)}
+                  </span>
+                </div>
+
+                <button
+                  className="tool-btn"
+                  onClick={() => setEditorScrollY(s => Math.min(maxScrollY, s + TILE_SIZE * 2))}
+                  style={{ fontSize: '0.75rem', padding: '3px 6px', width: '100%', marginBottom: '3px' }}
+                  title="Scroll DOWN 2 rows"
+                >
+                  ▼ DOWN
+                </button>
+                <button
+                  className="tool-btn"
+                  onClick={() => setEditorScrollY(maxScrollY)}
+                  style={{ fontSize: '0.75rem', padding: '3px 6px', width: '100%' }}
+                  title="Scroll to Floor"
+                >
+                  ▼▼ FLOOR
                 </button>
               </div>
+            )}
+          </div>
+
+          {/* Scroll Slider Controls (No flex gap - child margins) */}
+          <div style={{ display: 'flex', alignItems: 'center', width: '100%', marginTop: '8px' }}>
+            <button className="tool-btn" onClick={() => setEditorScrollX(s => Math.max(0, s - TILE_SIZE * 4))} style={{ marginRight: '6px' }}>
+              &lt;&lt;
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={maxScroll}
+              value={editorScrollX}
+              onChange={e => setEditorScrollX(Number(e.target.value))}
+              style={{ flex: 1, accentColor: 'black', marginRight: '6px' }}
+            />
+            <button className="tool-btn" onClick={() => setEditorScrollX(s => Math.min(maxScroll, s + TILE_SIZE * 4))} style={{ marginRight: '8px' }}>
+              &gt;&gt;
+            </button>
+            <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 'bold', minWidth: '55px' }}>
+              Col: {Math.floor(editorScrollX / TILE_SIZE)}
+            </span>
+          </div>
+
+          {/* Kindle-Compliant Camera Controls & Flight Ceiling Bar */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              background: '#f2f2f2',
+              border: '2px solid black',
+              padding: '4px 6px',
+              marginTop: '8px',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}
+          >
+            <span style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '0.75rem', marginRight: '6px' }}>
+              CAMERA X:
+            </span>
+            <button className="tool-btn" onClick={() => setEditorScrollX(0)} style={{ marginRight: '4px', fontSize: '0.7rem', padding: '3px 6px' }} title="Jump camera to Start">
+              |◀ 0%
+            </button>
+            <button className="tool-btn" onClick={() => setEditorScrollX(s => Math.max(0, s - TILE_SIZE * 10))} style={{ marginRight: '4px', fontSize: '0.7rem', padding: '3px 6px' }} title="Scroll left 10 columns">
+              ◀◀ -10
+            </button>
+            <button className="tool-btn" onClick={() => setEditorScrollX(s => Math.max(0, s - TILE_SIZE * 2))} style={{ marginRight: '4px', fontSize: '0.7rem', padding: '3px 6px' }} title="Scroll left 2 columns">
+              ◀ -2
+            </button>
+            <button className="tool-btn" onClick={() => setEditorScrollX(s => Math.min(maxScroll, s + TILE_SIZE * 2))} style={{ marginRight: '4px', fontSize: '0.7rem', padding: '3px 6px' }} title="Scroll right 2 columns">
+              +2 ▶
+            </button>
+            <button className="tool-btn" onClick={() => setEditorScrollX(s => Math.min(maxScroll, s + TILE_SIZE * 10))} style={{ marginRight: '4px', fontSize: '0.7rem', padding: '3px 6px' }} title="Scroll right 10 columns">
+              +10 ▶▶
+            </button>
+            <button className="tool-btn" onClick={() => setEditorScrollX(maxScroll)} style={{ marginRight: '8px', fontSize: '0.7rem', padding: '3px 6px' }} title="Jump camera to End">
+              100% ▶|
+            </button>
+
+            {gridData.length > 12 && (
+              <>
+                <span style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '0.75rem', marginRight: '6px' }}>
+                  Y:
+                </span>
+                <button className="tool-btn" onClick={() => setEditorScrollY(0)} style={{ marginRight: '4px', fontSize: '0.7rem', padding: '3px 6px' }} title="Scroll up to top ceiling">
+                  ▲▲ TOP
+                </button>
+                <button className="tool-btn" onClick={() => setEditorScrollY(s => Math.max(0, s - TILE_SIZE * 2))} style={{ marginRight: '4px', fontSize: '0.7rem', padding: '3px 6px' }} title="Scroll up 2 rows">
+                  ▲ UP
+                </button>
+                <button className="tool-btn" onClick={() => setEditorScrollY(s => Math.min(maxScrollY, s + TILE_SIZE * 2))} style={{ marginRight: '4px', fontSize: '0.7rem', padding: '3px 6px' }} title="Scroll down 2 rows">
+                  ▼ DOWN
+                </button>
+                <button className="tool-btn" onClick={() => setEditorScrollY(maxScrollY)} style={{ marginRight: '8px', fontSize: '0.7rem', padding: '3px 6px' }} title="Scroll down to ground floor">
+                  ▼▼ FLOOR
+                </button>
+              </>
+            )}
+
+            {hasStartPos && (
+              <>
+                <button className="tool-btn active" onClick={jumpToStartPos} style={{ marginRight: '4px', fontSize: '0.7rem', padding: '3px 6px' }} title="Jump camera directly to StartPos">
+                  ⚑ TO STARTPOS
+                </button>
+                <button className="tool-btn" onClick={clearStartPos} style={{ marginRight: '6px', fontSize: '0.7rem', padding: '3px 6px' }} title="Clear all StartPos objects so level can be published">
+                  CLEAR STARTPOS
+                </button>
+              </>
+            )}
+
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+              <button
+                className={`tool-btn ${noCeiling ? 'active' : ''}`}
+                onClick={() => setNoCeiling(v => !v)}
+                style={{ fontSize: '0.7rem', padding: '3px 6px' }}
+                title="Toggle whether flight gamemodes (Ship, UFO, Wave, Swing) are clamped by ceiling or have free open flight. Portals are 3 blocks tall with 8 directional rotations (0, 45, 90, 135, 180, -135, -90, -45) — tweak levels until desirable."
+              >
+                CEILING: {noCeiling ? 'REMOVED (OPEN FLIGHT)' : 'DEFAULT (CLAMPED)'}
+              </button>
             </div>
+          </div>
 
             {hasStartPos && (
               <div
@@ -1147,7 +1404,6 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
                 ⚠️ LEVEL CONTAINS STARTPOS: Publishing to server & community is disabled until StartPos is removed. Use "CLEAR STARTPOS" above before publishing.
               </div>
             )}
-          </div>
 
           {/* Export / Import Box */}
           <div style={{ marginTop: '12px', width: '100%' }}>

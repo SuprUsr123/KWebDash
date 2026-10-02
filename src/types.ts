@@ -17,8 +17,9 @@ export interface LevelData {
   diff: number; // 0: Easy, 1: Normal, 2: Hard, 3: Brutal
   speed: number;
   cols: number;
-  rows: number; // Default 12
-  grid: string[]; // Array of 12 strings, each `cols` characters long
+  rows: number; // Default 12, dynamically expandable for tall levels
+  floorRow?: number; // Row index of ground obstacle tiles. Floor line is at (floorRow + 1) * TILE_SIZE. Default: rows > 12 ? rows - 3 : 9
+  grid: string[]; // Array of strings, each `cols` characters long
   raw?: string; // Legacy 1D string if imported
   gearsTotal?: number;
   isCommunity?: boolean;
@@ -53,6 +54,7 @@ export interface Checkpoint {
 }
 
 export interface SaveState {
+  username?: string;
   progress: Record<string, number>; // levelId -> percentage
   gears: Record<string, number>; // levelId -> bitmask
   customLevels: LevelData[];
@@ -82,7 +84,7 @@ export const MAX_ACCUMULATOR = 100;
 
 // GD Physics Constants (Authentic balanced GD gravity & jump arc: tuned for fair staircase climbs and consistent triple spikes)
 export const GD_BASE_SPEED = 4.1544; // 1.0x Normal speed (px/frame)
-export const BASE_GRAVITY = 0.60; // GD Cube gravity acceleration (px/frame^2, perfectly balanced weight)
+export const BASE_GRAVITY = 0.65; // GD Cube gravity acceleration (px/frame^2, perfectly balanced weight)
 export const TERMINAL_VELOCITY = 10.8; // Terminal fall velocity (px/frame)
 export const JUMP_FORCE = -8.40; // GD Cube jump impulse (clears 2.3 blocks high, 4.85 blocks distance)
 export const CUBE_ROT_SPEED = (2 * Math.PI) / 28; // ~0.2244 rad/frame (one exact 360° rotation across 28-frame jump arc)

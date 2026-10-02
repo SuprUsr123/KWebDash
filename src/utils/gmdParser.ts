@@ -409,8 +409,20 @@ export function parseGMDContent(content: string, fallbackFileName?: string): GMD
     col: number;
     row: number;
     tileChar: string;
+    isPortal?: boolean;
+    rot?: number;
   }
   const elements: ParsedElem[] = [];
+
+  // Determine highest object height to prevent any ceiling cramping
+  let maxGdGridY = 7;
+  for (const obj of rawObjects) {
+    const gy = Math.round((obj.posY - baseY) / 30);
+    if (gy > maxGdGridY) maxGdGridY = gy;
+  }
+  const floorRow = Math.max(9, maxGdGridY + 2);
+  const totalRows = floorRow + 3;
+  const hasHigherObstacles = maxGdGridY > 7;
 
   // Second pass: map each object to Cube Dash tiles
   for (const obj of rawObjects) {
@@ -418,9 +430,9 @@ export function parseGMDContent(content: string, fallbackFileName?: string): GMD
 
     // Offset column so start has 5 columns of run-up room before the first obstacle
     const col = Math.max(0, Math.round((posX - minPosX) / 30) + 5);
-    // Ground Y (gdGridY = 0) maps to Row 9 in Cube Dash (floor level)
+    // Ground Y (gdGridY = 0) maps to floorRow in Cube Dash
     const gdGridY = Math.round((posY - baseY) / 30);
-    const row = 9 - gdGridY;
+    const row = floorRow - gdGridY;
 
     if (col > maxCol) maxCol = col;
 
@@ -615,9 +627,24 @@ export function parseGMDContent(content: string, fallbackFileName?: string): GMD
 
     if (tileChar) {
       parsedObjectCount++;
-      // Clamp row within visible playfield (Row 2 to 9)
-      const clampedRow = Math.max(2, Math.min(9, row));
-      elements.push({ col, row: clampedRow, tileChar });
+      const isPortal =
+        tileChar === 'w' ||
+        tileChar === 'q' ||
+        tileChar === 'a' ||
+        tileChar === 'u' ||
+        tileChar === 'v' ||
+        tileChar === 'k' ||
+        tileChar === 'y' ||
+        tileChar === 'g' ||
+        tileChar === 'n' ||
+        tileChar === '1' ||
+        tileChar === '2' ||
+        tileChar === '3' ||
+        tileChar === '4';
+
+      // Keep within valid grid rows (0 to totalRows - 1)
+      const clampedRow = Math.max(0, Math.min(totalRows - 1, row));
+      elements.push({ col, row: clampedRow, tileChar, isPortal, rot: normRot });
     }
   }
 
@@ -628,35 +655,57 @@ export function parseGMDContent(content: string, fallbackFileName?: string): GMD
     };
   }
 
-  // Build 12-row grid matrix
+  // Build grid matrix dynamically sized to totalRows
   const totalCols = Math.max(60, maxCol + 8);
-  const gridMatrix: string[][] = Array.from({ length: ROWS }, () =>
+  const gridMatrix: string[][] = Array.from({ length: totalRows }, () =>
     Array(totalCols).fill('.')
   );
+
+  /**
+   * Portals in Geometry Dash are 3 blocks in length with 8 standard rotation orientations:
+   * 0, 45, 90, 135, 180, -135 (225), -90 (270), -45 (315).
+   * Returns array of [deltaRow, deltaCol] relative to the center block.
+   */
+  function getPortalBlockOffsets(rot: number = 0): [number, number][] {
+    const normRot = ((Math.round(rot) % 360) + 360) % 360;
+    // Snap to nearest 45 degree angle: 0, 45, 90, 135, 180, 225, 270, 315
+    const snap = (Math.round(normRot / 45) * 45) % 360;
+
+    switch (snap) {
+      case 0:
+      case 180:
+        // Vertical: 3 blocks tall (center - 1, center, center + 1)
+        return [[-1, 0], [0, 0], [1, 0]];
+      case 90:
+      case 270:
+        // Horizontal: 3 blocks wide (center - 1, center, center + 1)
+        return [[0, -1], [0, 0], [0, 1]];
+      case 45:
+      case 225:
+        // 45° or -135° diagonal
+        return [[1, -1], [0, 0], [-1, 1]];
+      case 135:
+      case 315:
+        // 135° or -45° diagonal
+        return [[-1, -1], [0, 0], [1, 1]];
+      default:
+        return [[-1, 0], [0, 0], [1, 0]];
+    }
+  }
 
   // Fill in parsed elements
   for (let i = 0; i < elements.length; i++) {
     const el = elements[i];
-    if (el.col < totalCols && el.row >= 0 && el.row < ROWS) {
-      // If portal or speed trigger, fill vertical column so player cannot miss it
-      const isPortalOrTrigger =
-        el.tileChar === 'w' ||
-        el.tileChar === 'q' ||
-        el.tileChar === 'a' ||
-        el.tileChar === 'u' ||
-        el.tileChar === 'v' ||
-        el.tileChar === 'k' ||
-        el.tileChar === 'y' ||
-        el.tileChar === 'g' ||
-        el.tileChar === 'n' ||
-        el.tileChar === '1' ||
-        el.tileChar === '2' ||
-        el.tileChar === '3' ||
-        el.tileChar === '4';
-
-      if (isPortalOrTrigger) {
-        for (let r = 2; r <= 9; r++) {
-          gridMatrix[r][el.col] = el.tileChar;
+    if (el.col < totalCols && el.row >= 0 && el.row < totalRows) {
+      if (el.isPortal) {
+        // Portals are 3 blocks in length with 8 directional rotations
+        const offsets = getPortalBlockOffsets(el.rot);
+        for (const [dr, dc] of offsets) {
+          const pr = el.row + dr;
+          const pc = el.col + dc;
+          if (pr >= 0 && pr < totalRows && pc >= 0 && pc < totalCols) {
+            gridMatrix[pr][pc] = el.tileChar;
+          }
         }
       } else {
         gridMatrix[el.row][el.col] = el.tileChar;
@@ -666,7 +715,7 @@ export function parseGMDContent(content: string, fallbackFileName?: string): GMD
 
   // Add Finish line at the end
   const finishCol = totalCols - 2;
-  for (let r = 2; r <= 9; r++) {
+  for (let r = 2; r <= floorRow; r++) {
     gridMatrix[r][finishCol] = 'e';
   }
 
@@ -679,11 +728,13 @@ export function parseGMDContent(content: string, fallbackFileName?: string): GMD
     diff: 1, // Default Normal
     speed: 1.0, // 1.0x GD Normal speed
     cols: totalCols,
-    rows: ROWS,
+    rows: totalRows,
+    floorRow: floorRow,
     grid: gridStrings,
     gearsTotal: coinCount,
     isCommunity: true,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    noCeiling: hasHigherObstacles
   };
 
   return {

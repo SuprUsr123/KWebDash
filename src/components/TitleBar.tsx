@@ -9,12 +9,16 @@ import React from 'react';
 interface TitleBarProps {
   title: string;
   totalPct: number;
+  username?: string;
+  onEditUsername?: () => void;
   onClose?: () => void;
 }
 
 export const TitleBar: React.FC<TitleBarProps> = ({
   title,
   totalPct,
+  username,
+  onEditUsername,
   onClose
 }) => {
   return (
@@ -34,7 +38,26 @@ export const TitleBar: React.FC<TitleBarProps> = ({
       </span>
 
       {/* Secondary Stats Group (z-index: 2) */}
-      <div className="title-right-group">
+      <div className="title-right-group" style={{ display: 'flex', alignItems: 'center' }}>
+        {onEditUsername && (
+          <button
+            onClick={onEditUsername}
+            title="Click to change your username"
+            style={{
+              background: '#141414',
+              color: '#ffffff',
+              border: '1px solid #ffffff',
+              padding: '1px 5px',
+              fontSize: '0.65rem',
+              fontWeight: 'bold',
+              fontFamily: 'monospace',
+              marginRight: '6px',
+              cursor: 'pointer'
+            }}
+          >
+            @{username || 'Player'}
+          </button>
+        )}
         TOTAL:&nbsp;<span>{totalPct}%</span>
       </div>
     </div>

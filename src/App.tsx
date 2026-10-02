@@ -17,6 +17,8 @@ import { SystemModal, ModalConfig } from './components/SystemModal';
 
 const LEVELS_PER_PAGE = 4;
 
+const DEFAULT_API_BASE = 'https://kwebdash.onrender.com';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'menu' | 'editor' | 'community' | 'game'>('menu');
   const [menuPage, setMenuPage] = useState<number>(0);
@@ -36,6 +38,7 @@ export default function App() {
           (lvl: LevelData) => lvl && !isBannedLegacyLevel(lvl)
         );
         return {
+          username: parsed.username || 'Player',
           progress: parsed.progress || {},
           gears: parsed.gears || {},
           customLevels: cleanCustom
@@ -45,11 +48,30 @@ export default function App() {
       // Ignore fallback
     }
     return {
+      username: 'Player',
       progress: {},
       gears: {},
       customLevels: []
     };
   });
+
+  const handleEditUsername = () => {
+    setModalConfig({
+      type: 'prompt',
+      title: 'SET USERNAME',
+      message: 'Choose your player & creator username:',
+      defaultValue: saveState.username || 'Player',
+      onConfirm: (val: string) => {
+        const trimmed = val ? val.trim().replace(/^@/, '') : '';
+        if (trimmed) {
+          setSaveState(prev => ({
+            ...prev,
+            username: trimmed
+          }));
+        }
+      }
+    });
+  };
 
   // E-Ink Configuration
   const [einkConfig, setEinkConfig] = useState<EInkConfig>({
@@ -79,7 +101,7 @@ export default function App() {
     const syncWithServer = async () => {
       try {
         const cleanLocal = (saveState.customLevels || []).filter(l => !isBannedLegacyLevel(l));
-        const res = await fetch('/api/levels/sync', {
+        const res = await fetch(`${DEFAULT_API_BASE}/api/levels/sync`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(cleanLocal)
@@ -187,7 +209,7 @@ export default function App() {
     });
 
     // Also persist to server in the background so it survives republishing
-    fetch('/api/levels', {
+    fetch(`${DEFAULT_API_BASE}/api/levels`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(lvl)
@@ -208,7 +230,7 @@ export default function App() {
     }));
     // Also delete on server if server-persisted
     if (id.startsWith('srv-lvl-')) {
-      fetch(`/api/levels/${id}`, { method: 'DELETE' }).catch(() => {});
+      fetch(`${DEFAULT_API_BASE}/api/levels/${id}`, { method: 'DELETE' }).catch(() => {});
     }
   };
 
@@ -247,6 +269,8 @@ export default function App() {
       <TitleBar
         title="Cube Dash"
         totalPct={overallAvgPct}
+        username={saveState.username}
+        onEditUsername={handleEditUsername}
         onClose={() => setActiveTab('menu')}
       />
 
@@ -380,6 +404,7 @@ export default function App() {
       {activeTab === 'editor' && (
         <LevelEditor
           initialLevel={editingLevel}
+          defaultAuthor={saveState.username || 'Player'}
           einkConfig={einkConfig}
           onSaveToCommunity={handleSaveToCommunity}
           onQuitToMenu={() => setActiveTab('menu')}
@@ -391,6 +416,8 @@ export default function App() {
           levels={saveState.customLevels}
           saveProgress={saveState.progress}
           saveGears={saveState.gears}
+          username={saveState.username}
+          onEditUsername={handleEditUsername}
           onPlayLevel={startPlayLevel}
           onEditLevel={handleEditLevel}
           onDeleteLevel={handleDeleteCustomLevel}

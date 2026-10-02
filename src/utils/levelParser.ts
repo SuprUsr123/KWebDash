@@ -128,6 +128,7 @@ export function parseLevelToObstacles(level: LevelData): {
   if (level.grid && level.grid.length > 0) {
     const rows = level.grid.length;
     const cols = level.grid[0]?.length || 0;
+    const floorRow = level.floorRow ?? (rows > 12 ? rows - 3 : 9);
 
     for (let r = 0; r < rows; r++) {
       const rowStr = level.grid[r];
@@ -154,9 +155,9 @@ export function parseLevelToObstacles(level: LevelData): {
             const isSolidLeft = (leftChar === 'b' || leftChar === 'f' || leftChar === 'B');
             const isSolidBottom = (bottomChar === 'b' || bottomChar === 'B');
 
-            if (!isSolidBottom && isSolidRight && (r < 9 || bottomChar === 's' || bottomChar === 'h' || bottomChar === '<')) {
+            if (!isSolidBottom && isSolidRight && (r < floorRow || bottomChar === 's' || bottomChar === 'h' || bottomChar === '<')) {
               obstacles.push({ type: 'leftspike', x, top: y, w: TILE_SIZE, h: TILE_SIZE });
-            } else if (!isSolidBottom && isSolidLeft && (r < 9 || bottomChar === 's' || bottomChar === 'h' || bottomChar === '>')) {
+            } else if (!isSolidBottom && isSolidLeft && (r < floorRow || bottomChar === 's' || bottomChar === 'h' || bottomChar === '>')) {
               obstacles.push({ type: 'rightspike', x, top: y, w: TILE_SIZE, h: TILE_SIZE });
             } else if (r <= 2 && !isSolidBottom) {
               obstacles.push({ type: 'ceilspike', x, top: y, w: TILE_SIZE, h: TILE_SIZE });
@@ -185,9 +186,9 @@ export function parseLevelToObstacles(level: LevelData): {
             const isSolidLeft = (leftChar === 'b' || leftChar === 'f' || leftChar === 'B');
             const isSolidBottom = (bottomChar === 'b' || bottomChar === 'B');
 
-            if (!isSolidBottom && isSolidRight && (r < 9 || bottomChar === 's' || bottomChar === 'h' || bottomChar === '<')) {
+            if (!isSolidBottom && isSolidRight && (r < floorRow || bottomChar === 's' || bottomChar === 'h' || bottomChar === '<')) {
               obstacles.push({ type: 'leftspike', x, top: y, w: TILE_SIZE, h: TILE_SIZE });
-            } else if (!isSolidBottom && isSolidLeft && (r < 9 || bottomChar === 's' || bottomChar === 'h' || bottomChar === '>')) {
+            } else if (!isSolidBottom && isSolidLeft && (r < floorRow || bottomChar === 's' || bottomChar === 'h' || bottomChar === '>')) {
               obstacles.push({ type: 'rightspike', x, top: y, w: TILE_SIZE, h: TILE_SIZE });
             } else if (r <= 2 && !isSolidBottom) {
               obstacles.push({
@@ -310,7 +311,7 @@ export function parseLevelToObstacles(level: LevelData): {
           case 'e':
             // One object = one line that finishes the level when touched
             if (!obstacles.some(o => o.type === 'end' && o.x === x)) {
-              obstacles.push({ type: 'end', x, top: 0, w: TILE_SIZE, h: ROWS * TILE_SIZE });
+              obstacles.push({ type: 'end', x, top: 0, w: TILE_SIZE, h: rows * TILE_SIZE });
             }
             if (x < finishX || finishX === 8000) finishX = x;
             break;

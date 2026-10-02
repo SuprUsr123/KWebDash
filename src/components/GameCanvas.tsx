@@ -13,6 +13,7 @@ import {
   CANVAS_W,
   CANVAS_H,
   TILE_SIZE,
+  ROWS,
   FLOOR_Y,
   CEIL_Y,
   PLAYER_SIZE,
@@ -127,32 +128,40 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     engineRef.current.finishX = finishX;
     engineRef.current.gearTotal = gearTotal;
 
+    const gridRows = level.grid?.length || ROWS;
+    const floorRow = level.floorRow ?? (gridRows > 12 ? gridRows - 3 : 9);
+    const floorY = (floorRow + 1) * TILE_SIZE;
+    const baseCamY = Math.max(0, floorY - 240);
+
+    (engineRef.current as any).floorY = floorY;
+    (engineRef.current as any).baseCamY = baseCamY;
+
     if (startPos) {
       engineRef.current.scrollX = Math.max(0, startPos.x - PLAYER_X);
-      engineRef.current.cameraY = 0;
+      engineRef.current.cameraY = baseCamY;
       engineRef.current.speedScale = startPos.speedScale;
       engineRef.current.grav = startPos.grav;
       engineRef.current.mode = startPos.mode;
       engineRef.current.zoom = startPos.zoom ?? 1.0;
       engineRef.current.targetZoom = startPos.zoom ?? 1.0;
       engineRef.current.player = {
-        y: Math.max(0, Math.min(FLOOR_Y - PLAYER_SIZE, startPos.y)),
+        y: Math.max(0, Math.min(floorY - PLAYER_SIZE, startPos.y)),
         vy: 0,
         rotation: 0,
-        grounded: startPos.y >= FLOOR_Y - PLAYER_SIZE - 2,
+        grounded: startPos.y >= floorY - PLAYER_SIZE - 2,
         coyote: 0,
         buffer: 0
       };
     } else {
       engineRef.current.scrollX = 0;
-      engineRef.current.cameraY = 0;
+      engineRef.current.cameraY = baseCamY;
       engineRef.current.speedScale = 1.0;
       engineRef.current.grav = 1;
       engineRef.current.mode = 'cube';
       engineRef.current.zoom = 1.0;
       engineRef.current.targetZoom = 1.0;
       engineRef.current.player = {
-        y: FLOOR_Y - PLAYER_SIZE,
+        y: floorY - PLAYER_SIZE,
         vy: 0,
         rotation: 0,
         grounded: true,
@@ -355,6 +364,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const vx = GD_BASE_SPEED * baseSpeedFactor * eng.speedScale;
           const prevTop = eng.player.y;
           let touching = false;
+          const currentFloorY = (eng as any).floorY || FLOOR_Y;
+          const baseCamY = (eng as any).baseCamY || 0;
+          const currentCeilY = level.noCeiling ? -99999 : ((level.grid?.length || ROWS) > 12 ? 2 * TILE_SIZE : CEIL_Y);
 
           if (eng.mode === 'wave') {
             // Wave Mode: perfect 45-degree diagonal trajectory in GD
@@ -363,9 +375,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             eng.player.y += eng.player.vy;
             eng.scrollX += vx;
 
-            const waveBottom = FLOOR_Y - 18;
+            const waveBottom = currentFloorY - 18;
             if (eng.player.y > waveBottom) { eng.player.y = waveBottom; touching = true; }
-            if (!level.noCeiling && eng.player.y < CEIL_Y) { eng.player.y = CEIL_Y; touching = true; }
+            if (!level.noCeiling && eng.player.y < currentCeilY) { eng.player.y = currentCeilY; touching = true; }
 
             if (touching) {
               eng.player.rotation += (0 - eng.player.rotation) * 0.35;
@@ -381,9 +393,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             eng.player.y += eng.player.vy;
             eng.scrollX += vx;
 
-            const shipBottom = FLOOR_Y - SHIP_H;
+            const shipBottom = currentFloorY - SHIP_H;
             if (eng.player.y > shipBottom) { eng.player.y = shipBottom; eng.player.vy = 0; }
-            if (!level.noCeiling && eng.player.y < CEIL_Y) { eng.player.y = CEIL_Y; eng.player.vy = 0; }
+            if (!level.noCeiling && eng.player.y < currentCeilY) { eng.player.y = currentCeilY; eng.player.vy = 0; }
 
             const targetPitch = (eng.player.vy / SHIP_TERMINAL) * 0.65 * eng.grav;
             eng.player.rotation += (targetPitch - eng.player.rotation) * 0.22;
@@ -394,12 +406,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             eng.player.y += eng.player.vy;
             eng.scrollX += vx;
 
-            const ufoBottom = FLOOR_Y - PLAYER_SIZE;
+            const ufoBottom = currentFloorY - PLAYER_SIZE;
             if (eng.grav === 1) {
               if (eng.player.y > ufoBottom) { eng.player.y = ufoBottom; eng.player.vy = 0; eng.player.grounded = true; touching = true; }
-              if (!level.noCeiling && eng.player.y < CEIL_Y) { eng.player.y = CEIL_Y; eng.player.vy = 0; }
+              if (!level.noCeiling && eng.player.y < currentCeilY) { eng.player.y = currentCeilY; eng.player.vy = 0; }
             } else {
-              if (!level.noCeiling && eng.player.y < CEIL_Y) { eng.player.y = CEIL_Y; eng.player.vy = 0; eng.player.grounded = true; touching = true; }
+              if (!level.noCeiling && eng.player.y < currentCeilY) { eng.player.y = currentCeilY; eng.player.vy = 0; eng.player.grounded = true; touching = true; }
               if (eng.player.y > ufoBottom) { eng.player.y = ufoBottom; eng.player.vy = 0; }
             }
 
@@ -413,12 +425,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             eng.player.y += eng.player.vy;
             eng.scrollX += vx;
 
-            const swingBottom = FLOOR_Y - PLAYER_SIZE;
+            const swingBottom = currentFloorY - PLAYER_SIZE;
             if (eng.grav === 1) {
               if (eng.player.y > swingBottom) { eng.player.y = swingBottom; eng.player.vy = 0; eng.player.grounded = true; touching = true; }
-              if (!level.noCeiling && eng.player.y < CEIL_Y) { eng.player.y = CEIL_Y; eng.player.vy = 0; }
+              if (!level.noCeiling && eng.player.y < currentCeilY) { eng.player.y = currentCeilY; eng.player.vy = 0; }
             } else {
-              if (!level.noCeiling && eng.player.y < CEIL_Y) { eng.player.y = CEIL_Y; eng.player.vy = 0; eng.player.grounded = true; touching = true; }
+              if (!level.noCeiling && eng.player.y < currentCeilY) { eng.player.y = currentCeilY; eng.player.vy = 0; eng.player.grounded = true; touching = true; }
               if (eng.player.y > swingBottom) { eng.player.y = swingBottom; eng.player.vy = 0; }
             }
 
@@ -453,8 +465,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             eng.scrollX += vx;
 
             if (eng.grav === 1) {
-              if (eng.player.y >= FLOOR_Y - PLAYER_SIZE) {
-                eng.player.y = FLOOR_Y - PLAYER_SIZE;
+              if (eng.player.y >= currentFloorY - PLAYER_SIZE) {
+                eng.player.y = currentFloorY - PLAYER_SIZE;
                 eng.player.vy = 0;
                 eng.player.grounded = true;
                 eng.robotBoost = 0;
@@ -515,8 +527,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             eng.scrollX += vx;
 
             if (eng.grav === 1) {
-              if (eng.player.y >= FLOOR_Y - PLAYER_SIZE) {
-                eng.player.y = FLOOR_Y - PLAYER_SIZE;
+              if (eng.player.y >= currentFloorY - PLAYER_SIZE) {
+                eng.player.y = currentFloorY - PLAYER_SIZE;
                 eng.player.vy = 0;
                 eng.player.grounded = true;
                 touching = true;
@@ -796,16 +808,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           }
 
           // Smooth Camera Y Tracking according to player Y position (Kindle e-ink friendly integer quantization)
-          let targetCamY = 0;
+          let targetCamY = baseCamY;
           if (level.noCeiling || ['ship', 'ufo', 'wave', 'swing'].includes(eng.mode)) {
-            if (eng.player.y < 120) {
+            if (eng.player.y < baseCamY + 120) {
               targetCamY = eng.player.y - 120;
+            } else {
+              targetCamY = baseCamY;
             }
           } else {
-            if (eng.player.y < 110) {
+            if (eng.player.y < baseCamY + 110) {
               targetCamY = eng.player.y - 110;
-            } else if (eng.player.y > FLOOR_Y - PLAYER_SIZE + 10) {
-              targetCamY = eng.player.y - (FLOOR_Y - PLAYER_SIZE + 10);
+            } else if (eng.player.y > currentFloorY - PLAYER_SIZE + 10) {
+              targetCamY = eng.player.y - (currentFloorY - PLAYER_SIZE + 10) + baseCamY;
+            } else {
+              targetCamY = baseCamY;
             }
           }
           eng.cameraY += (targetCamY - eng.cameraY) * 0.16;
@@ -1045,13 +1061,14 @@ function renderScene(ctx: CanvasRenderingContext2D, eng: any, isDead: boolean, n
   ctx.translate(0, -camY);
 
   // Ceil & Floor boundaries
+  const currentFloorY = (eng as any).floorY || FLOOR_Y;
   ctx.fillStyle = '#000000';
   if (eng.grav === -1 || (!noCeiling && ['ship', 'ufo', 'wave', 'swing'].includes(eng.mode))) {
     ctx.fillRect(0, CEIL_Y - 4, CANVAS_W, 4);
     ctx.fillRect(0, -400, CANVAS_W, 400 + CEIL_Y); // Solid upper roof
   }
-  ctx.fillRect(0, FLOOR_Y - 2, CANVAS_W, 4);
-  ctx.fillRect(0, FLOOR_Y + 2, CANVAS_W, 400); // Solid lower ground
+  ctx.fillRect(0, currentFloorY - 2, CANVAS_W, 4);
+  ctx.fillRect(0, currentFloorY + 2, CANVAS_W, 400); // Solid lower ground
 
   // Ground ticks
   const tickOff = Math.round(eng.scrollX % 24);
@@ -1059,11 +1076,11 @@ function renderScene(ctx: CanvasRenderingContext2D, eng: any, isDead: boolean, n
   ctx.lineWidth = 1;
   for (let ti = -1; ti < CANVAS_W / 24 + 1; ti++) {
     ctx.beginPath();
-    ctx.moveTo(ti * 24 - tickOff, FLOOR_Y + 8);
-    ctx.lineTo(ti * 24 - tickOff - 12, FLOOR_Y + 32);
+    ctx.moveTo(ti * 24 - tickOff, currentFloorY + 8);
+    ctx.lineTo(ti * 24 - tickOff - 12, currentFloorY + 32);
     ctx.stroke();
   }
-  ctx.fillRect(0, FLOOR_Y + 38, CANVAS_W, 4);
+  ctx.fillRect(0, currentFloorY + 38, CANVAS_W, 4);
 
   // Practice checkpoints
   if (eng.checkpoints.length > 0) {

@@ -17,6 +17,8 @@ interface CommunityRepositoryProps {
   levels: LevelData[];
   saveProgress: Record<string, number>;
   saveGears: Record<string, number>;
+  username?: string;
+  onEditUsername?: () => void;
   onPlayLevel: (level: LevelData, isPractice: boolean) => void;
   onEditLevel: (level: LevelData) => void;
   onDeleteLevel: (levelId: string) => void;
@@ -29,6 +31,8 @@ export const CommunityRepository: React.FC<CommunityRepositoryProps> = ({
   levels,
   saveProgress,
   saveGears,
+  username,
+  onEditUsername,
   onPlayLevel,
   onEditLevel,
   onDeleteLevel,
@@ -51,7 +55,7 @@ export const CommunityRepository: React.FC<CommunityRepositoryProps> = ({
   }, []);
 
   // Server Integration Configuration
-  const [serverEndpoint, setServerEndpoint] = useState<string>('/api/levels');
+  const [serverEndpoint, setServerEndpoint] = useState<string>('https://kwebdash.onrender.com/api/levels');
   const [isFetching, setIsFetching] = useState<boolean>(false);
   const [serverStatus, setServerStatus] = useState<string>('CONNECTING...');
   const [serverLevels, setServerLevels] = useState<LevelData[]>([]);
@@ -268,7 +272,7 @@ export const CommunityRepository: React.FC<CommunityRepositoryProps> = ({
         setModalConfig({
           type: 'alert',
           title: 'GMD IMPORT SUCCESS',
-          message: `Successfully imported "${result.level.name}" from .GMD file!\nObstacles: ${objCount}, Coins: ${coins}, Length: ${result.level.cols} columns.`
+          message: `Successfully imported "${result.level.name}" from .GMD file!\nObstacles: ${objCount}, Coins: ${coins}, Length: ${result.level.cols} columns.\n\nNote: Portals are 3 blocks tall with 8 directional rotations (0, 45, 90, 135, 180, -135, -90, -45). You can tweak the level in the Level Editor until desirable!`
         });
       } else {
         setModalConfig({
@@ -315,7 +319,7 @@ export const CommunityRepository: React.FC<CommunityRepositoryProps> = ({
         setModalConfig({
           type: 'alert',
           title: 'GMD IMPORT SUCCESS',
-          message: `Successfully imported "${gmdResult.level.name}" from Geometry Dash .GMD data!`
+          message: `Successfully imported "${gmdResult.level.name}" from Geometry Dash .GMD data!\n\nNote: Portals are 3 blocks tall with 8 directional rotations. You can tweak the level in the Level Editor until desirable!`
         });
         return;
       }
@@ -428,6 +432,25 @@ export const CommunityRepository: React.FC<CommunityRepositoryProps> = ({
           fontSize: '0.75rem'
         }}
       >
+        {/* User Profile Header Line */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', paddingBottom: '6px', borderBottom: '1px dashed #999' }}>
+          <div>
+            <span style={{ fontWeight: 'bold' }}>LOGGED IN AS: </span>
+            <span style={{ background: '#141414', color: '#ffffff', padding: '2px 6px', fontWeight: 'bold' }}>
+              @{username || 'Player'}
+            </span>
+          </div>
+          {onEditUsername && (
+            <button
+              className="tool-btn"
+              onClick={onEditUsername}
+              style={{ fontSize: '0.7rem', padding: '2px 8px' }}
+            >
+              CHANGE USERNAME
+            </button>
+          )}
+        </div>
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', marginBottom: '6px' }}>
           <div style={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
             <Server size={14} style={{ marginRight: '6px' }} />
@@ -479,31 +502,10 @@ export const CommunityRepository: React.FC<CommunityRepositoryProps> = ({
         <button
           className="sys-btn"
           onClick={onCreateNewLevel}
-          style={{ flex: 1, padding: '6px 12px', marginRight: isPC ? '8px' : 0 }}
+          style={{ flex: 1, padding: '6px 12px' }}
         >
           <Plus size={12} style={{ display: 'inline', marginRight: '4px' }} /> CREATE NEW LEVEL
         </button>
-        {isPC && (
-          <>
-            <input
-              type="file"
-              ref={gmdInputRef}
-              accept=".gmd,.gmd2,.xml,.plist,.txt"
-              style={{ display: 'none' }}
-              onChange={handleGMDFileSelect}
-            />
-            <button
-              className="sys-btn"
-              onClick={() => {
-                if (gmdInputRef.current) gmdInputRef.current.click();
-              }}
-              title="Import Geometry Dash level (.GMD / .GMD2) - Available on PC"
-              style={{ flex: 1, padding: '6px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              <FileUp size={13} style={{ marginRight: '5px' }} /> IMPORT .GMD (PC)
-            </button>
-          </>
-        )}
       </div>
 
       {/* Search & Filter Bar (No flex gap - uses child margins) */}
@@ -601,8 +603,19 @@ export const CommunityRepository: React.FC<CommunityRepositoryProps> = ({
                     <span style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '0.9rem' }}>
                       {lvl.name}
                     </span>
-                    <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', marginLeft: '8px', color: '#555' }}>
-                      by {lvl.author || 'Anonymous'}
+                    <span
+                      onClick={() => setSearchQuery(lvl.author || '')}
+                      title={`Filter levels by ${lvl.author || 'Anonymous'}`}
+                      style={{
+                        fontSize: '0.75rem',
+                        fontFamily: 'monospace',
+                        marginLeft: '8px',
+                        color: '#333',
+                        cursor: 'pointer',
+                        textDecoration: 'underline'
+                      }}
+                    >
+                      by @{lvl.author || 'Anonymous'}
                     </span>
                   </div>
 
@@ -743,15 +756,24 @@ export const CommunityRepository: React.FC<CommunityRepositoryProps> = ({
             IMPORT
           </button>
           {isPC && (
-            <button
-              className="tool-btn"
-              onClick={() => {
-                if (gmdInputRef.current) gmdInputRef.current.click();
-              }}
-              title="Browse for a .GMD level file"
-            >
-              <FileUp size={11} style={{ display: 'inline', marginRight: '3px' }} /> BROWSE .GMD
-            </button>
+            <>
+              <input
+                type="file"
+                ref={gmdInputRef}
+                accept=".gmd,.gmd2,.xml,.plist,.txt"
+                style={{ display: 'none' }}
+                onChange={handleGMDFileSelect}
+              />
+              <button
+                className="tool-btn"
+                onClick={() => {
+                  if (gmdInputRef.current) gmdInputRef.current.click();
+                }}
+                title="Browse for a .GMD level file"
+              >
+                <FileUp size={11} style={{ display: 'inline', marginRight: '3px' }} /> BROWSE .GMD
+              </button>
+            </>
           )}
         </div>
       </div>
