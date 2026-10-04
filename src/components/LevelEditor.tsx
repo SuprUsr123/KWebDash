@@ -406,23 +406,26 @@ export const LevelEditor: React.FC<LevelEditorProps> = ({
           ctx.fillStyle = '#000000';
           ctx.fillRect(ox + 8, oy + 8, TILE_SIZE - 16, TILE_SIZE - 16);
         } else if (ch === 'f') {
-          // Passable Wall / Fake Block (editor view: block with dashed inner border indicating walk-through)
+          // Passable Wall / Fake Block (clearly distinguishable from solid unpassable block)
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(ox, oy, TILE_SIZE, TILE_SIZE);
           ctx.strokeStyle = '#000000';
           ctx.lineWidth = 2;
           ctx.strokeRect(ox, oy, TILE_SIZE, TILE_SIZE);
 
-          // Dashed inner cue in editor
-          ctx.strokeStyle = '#555555';
+          // Dashed inner frame
+          ctx.strokeStyle = '#000000';
           ctx.lineWidth = 1.5;
-          ctx.setLineDash([3, 3]);
+          ctx.setLineDash([3, 2]);
           ctx.strokeRect(ox + 3.5, oy + 3.5, TILE_SIZE - 7, TILE_SIZE - 7);
           ctx.setLineDash([]);
 
-          // Ghost center accent
-          ctx.fillStyle = '#777777';
-          ctx.fillRect(ox + 8, oy + 8, TILE_SIZE - 16, TILE_SIZE - 16);
+          // Hollow open center frame with pass-through indicator
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(ox + 8, oy + 8, TILE_SIZE - 16, TILE_SIZE - 16);
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(ox + Math.round(TILE_SIZE / 2) - 1, oy + Math.round(TILE_SIZE / 2) - 1, 2, 2);
         } else if (ch === '=' || ch === 'B') {
           // Platform / Slab (Half height - 12px)
           const platH = Math.round(TILE_SIZE / 2);

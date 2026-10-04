@@ -1439,8 +1439,8 @@ function renderScene(ctx: CanvasRenderingContext2D, eng: any, isDead: boolean, n
       ctx.lineTo(baseX + 1, tipY);
       ctx.closePath();
       ctx.fill();
-    } else if (['block', 'pillar', 'fakeblock'].includes(o.type)) {
-      // Classic Geometry Dash Solid / Passable Block (Square 01 style)
+    } else if (['block', 'pillar'].includes(o.type)) {
+      // Classic Geometry Dash Solid Impassable Block (dense, solid mass)
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(ox, o.top, o.w, o.h);
       ctx.strokeStyle = '#000000';
@@ -1453,9 +1453,34 @@ function renderScene(ctx: CanvasRenderingContext2D, eng: any, isDead: boolean, n
         ctx.lineWidth = 1.5;
         ctx.strokeRect(ox + 3.5, o.top + 3.5, o.w - 7, o.h - 7);
 
-        // Center square accent
+        // Center square solid black accent (dense impassable barrier)
         ctx.fillStyle = '#000000';
         ctx.fillRect(ox + 8, o.top + 8, o.w - 16, o.h - 16);
+      }
+    } else if (o.type === 'fakeblock') {
+      // Passable Block / Phasable Wall - Visually distinguishable from solid unpassable blocks
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(ox, o.top, o.w, o.h);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(ox, o.top, o.w, o.h);
+
+      // Distinct dashed inner frame clearly indicating passable boundary
+      if (o.w >= 16 && o.h >= 16) {
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 2]);
+        ctx.strokeRect(ox + 3.5, o.top + 3.5, o.w - 7, o.h - 7);
+        ctx.setLineDash([]);
+
+        // Hollow open center frame with pass-through indicator
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(ox + 8, o.top + 8, o.w - 16, o.h - 16);
+
+        // Subtle center pass-through dot
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(ox + Math.round(o.w / 2) - 1, o.top + Math.round(o.h / 2) - 1, 2, 2);
       }
     } else if (o.type === 'platform') {
       // Sleek Modern Floating Platform / Slab

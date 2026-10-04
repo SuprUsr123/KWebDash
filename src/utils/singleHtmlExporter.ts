@@ -420,8 +420,21 @@ export function generateSingleFileHTML(level: LevelData, allLevels?: LevelData[]
                 ctx.beginPath(); ctx.moveTo(ox + o.w, o.top); ctx.lineTo(ox, o.top + o.h / 2); ctx.lineTo(ox + o.w, o.top + o.h); ctx.fill();
             } else if (o.type === 'rightspike') {
                 ctx.beginPath(); ctx.moveTo(ox, o.top); ctx.lineTo(ox + o.w, o.top + o.h / 2); ctx.lineTo(ox, o.top + o.h); ctx.fill();
-            } else if (o.type === 'block' || o.type === 'fakeblock') {
+            } else if (o.type === 'block') {
                 ctx.strokeRect(ox, o.top, o.w, o.h);
+                if (o.w >= 16 && o.h >= 16) {
+                    ctx.strokeRect(ox + 3.5, o.top + 3.5, o.w - 7, o.h - 7);
+                    ctx.fillRect(ox + 8, o.top + 8, o.w - 16, o.h - 16);
+                }
+            } else if (o.type === 'fakeblock') {
+                ctx.strokeRect(ox, o.top, o.w, o.h);
+                if (o.w >= 16 && o.h >= 16) {
+                    ctx.setLineDash([3, 2]);
+                    ctx.strokeRect(ox + 3.5, o.top + 3.5, o.w - 7, o.h - 7);
+                    ctx.setLineDash([]);
+                    ctx.strokeRect(ox + 8, o.top + 8, o.w - 16, o.h - 16);
+                    ctx.fillRect(ox + Math.round(o.w / 2) - 1, o.top + Math.round(o.h / 2) - 1, 2, 2);
+                }
             } else if (o.type === 'startpos') {
                 ctx.strokeRect(ox + 4, o.top + 4, o.w - 8, o.h - 8);
                 ctx.font = 'bold 8px monospace'; ctx.fillText('S', ox + 8, o.top + 14);

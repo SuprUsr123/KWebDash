@@ -19,23 +19,26 @@ body {
   font-family: "Geneva", "Verdana", sans-serif;
   image-rendering: pixelated; /* CRITICAL for crisp edges */
   margin: 0;
-  height: 100vh;
-  overflow: hidden; /* Prevent body scroll */
+  min-height: 100vh;
+  overflow: auto; /* Prevent cut-off on short viewports */
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 8px;
   user-select: none;
   touch-action: none;
 }
 
-/* Standard System 7 Window */
+/* Standard System 7 Window - Dynamically Readapts to Content */
 .window {
   background: white;
   border: 2px solid black;
   box-shadow: var(--shadow); /* Hard, non-blurred shadow */
-  width: 95%;
-  max-width: 600px; /* Standard Tablet Width */
-  height: 90vh; /* Standard Window Height */
+  width: auto;
+  max-width: min(96vw, 560px);
+  min-width: min(96vw, 360px);
+  height: auto; /* Dynamically readapts to content height */
+  max-height: calc(100vh - 16px); /* Never exceeds viewport */
   display: flex;
   flex-direction: column;
   position: relative;
@@ -167,7 +170,7 @@ body {
   box-shadow: none;
 }
 
-/* Window Content Viewport */
+/* Window Content Viewport - Adapts to content */
 .window-content {
   padding: 14px;
   display: flex;
@@ -175,7 +178,8 @@ body {
   align-items: center;
   background: white;
   position: relative;
-  flex: 1;
+  flex: 0 1 auto;
+  max-height: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }

@@ -84,7 +84,7 @@ export const MAX_ACCUMULATOR = 100;
 
 // GD Physics Constants (Authentic balanced GD gravity & jump arc: tuned for fair staircase climbs and consistent triple spikes)
 export const GD_BASE_SPEED = 4.1544; // 1.0x Normal speed (px/frame)
-export const BASE_GRAVITY = 0.65; // GD Cube gravity acceleration (px/frame^2, perfectly balanced weight)
+export const BASE_GRAVITY = 0.67; // GD Cube gravity acceleration (px/frame^2, perfectly balanced weight)
 export const TERMINAL_VELOCITY = 10.8; // Terminal fall velocity (px/frame)
 export const JUMP_FORCE = -8.40; // GD Cube jump impulse (clears 2.3 blocks high, 4.85 blocks distance)
 export const CUBE_ROT_SPEED = (2 * Math.PI) / 28; // ~0.2244 rad/frame (one exact 360° rotation across 28-frame jump arc)
